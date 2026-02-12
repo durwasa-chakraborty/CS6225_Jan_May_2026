@@ -5,7 +5,7 @@ Ref. Software Foundations, Volume 1, Logic.v
 *)
 
 
-From LECTURES Require Export W4a.
+From LECTURES Require Export W4.
 
 (** The Prop Type in Rocq
 - Every statement that we can try to prove is of type Prop.
@@ -18,7 +18,7 @@ Check 2 = 2.
 Check 3 = 2.
 
 (** Propositions are also first-class members, and hence can be used at
-all places where any other type of member can be used *)
+all places where any other type can be used *)
 
 Definition is_three (n : nat) : Prop :=
   n = 3.

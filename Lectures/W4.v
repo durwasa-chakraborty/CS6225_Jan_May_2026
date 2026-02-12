@@ -9,6 +9,8 @@ Some more basic tactics in Rocq
 - specialize
 - generalize dependent
 - unfold
+
+Ref.: Software Foundations, Volume 1, Tactics.v
 *)
 
 From LECTURES Require Export W3.
@@ -120,8 +122,8 @@ Theorem func_app : forall (X Y: Type) (f: X -> Y) (x1 x2: X),
   x1 = x2 ->
   f x1 = f x2.
 Proof.
- intros X Y f x1 x2 H. rewrite H. reflexivity. Qed. 
-  (* intros X Y f x1 x2 H. f_equal. apply H. Qed. *)
+ (*intros X Y f x1 x2 H. rewrite H. reflexivity. Qed.*) 
+  intros X Y f x1 x2 H. f_equal. apply H. Qed. 
 
 (** Discriminate tactic
 - Used to prove goals that are contradictions, by noticing 
@@ -135,6 +137,9 @@ Theorem discriminate_ex1 : forall (n m : nat),
   n = m.
 Proof.
   intros n m contra. discriminate contra. Qed.
+
+(** Also known as principle of explosion: from a false hypothesis, 
+anything can be inferred. *)
 
 Theorem discriminate_ex2 : forall (n : nat),
   S n = O ->
@@ -259,11 +264,14 @@ Lemma sub_add_leb : forall n m, leb n m = true ->
 Proof. intros n. induction n as [| n' IHn'].
   - intros m H. destruct m as [| m'].
     + reflexivity.
-    + simpl. rewrite add_0. reflexivity.
+    + simpl. rewrite add_0_r. reflexivity.
   - intros m H. destruct m as [| m'].
     + simpl in H. discriminate H.
     + simpl. rewrite <- plus_n_Sm. simpl in H. 
-    apply IHn' in H. rewrite H. reflexivity. Qed.
+    rewrite IHn'.
+      ++ reflexivity.
+      ++ apply H. 
+Qed.
 
 (** The unfold tactic
 - Used to replace a defined term with its body.
