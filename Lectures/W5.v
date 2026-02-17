@@ -236,11 +236,6 @@ Inductive ev : nat -> Prop :=
 Theorem ev_4 : ev 4.
 Proof. apply ev_SS. apply ev_SS. apply ev_0. Qed.
 
-Theorem ev_double : forall n, ev (double n).
-Proof. intros n. induction n as [| n' IHn']. 
-- simpl. apply ev_0.
-- simpl. 
-
 Lemma ev_inversion : forall (n : nat),
     ev n ->
     (n = 0) \/ (exists n', n = S (S n') /\ ev n').
@@ -276,44 +271,85 @@ Proof. unfold not. intros H. inversion H. Qed.
 and automatically applies tactics such as discriminate and injection
 to discharge as many goals as possible. *)
 
-Theorem SSSSev__even : forall n,
-  ev (S (S (S (S n)))) -> ev n.
-Proof. intros n H. inversion H as [| n' E' Hnn']. 
- inversion E' as [| n'' E'' Hnn'']. apply E''. Qed.
- 
-Theorem ev5_nonsense :
-  ev 5 -> 2 + 2 = 9.
-Proof. intros H. inversion H as [| n' E' H5n']. inversion E' as [| n'' E'' H3n''].
-inversion E''. Qed.
-
-Theorem inversion_ex1 : forall (n m o : nat),
-  [n; m] = [o; o] -> [n] = [m].
-Proof. intros. inversion H.
-Qed.
-
-Theorem inversion_ex2 : forall (n m o p: nat),
-  [n; m] = [o; p] -> [n] = [o].
-Proof. intros. injection H as H1 H2. f_equal. apply H1. Qed. 
-
 
 Theorem Even_ev_equiv : forall (n:nat), Even n <-> ev n.
 Proof. split.
-- intros H. unfold Even in H. destruct H as [x Hx]. generalize dependent n. induction x as [| x' IHx'].
-  -- intros n H. simpl in H. rewrite H. apply ev_0.
-  -- intros n H. rewrite H. simpl. apply ev_SS. apply IHx'. reflexivity.
+- intros H. unfold Even in H. destruct H as [n' Hn']. rewrite Hn'. assert (L: forall (m:nat), ev(double m)).
+{  intros m. induction m as [| m' IHm'].
+  -- simpl. apply ev_0.
+  -- simpl. apply ev_SS. apply IHm'.
+} apply L.
 - intros H. induction H as [| n' H' IHn'].
   -- unfold Even. exists 0. reflexivity.
-  -- unfold Even in IHn'. destruct IHn' as [n IHn']. unfold Even.
-     exists (S n). simpl. rewrite IHn'. reflexivity.
+  -- unfold Even in IHn'. destruct IHn' as [k Hk]. unfold Even.
+     exists (S k). simpl. f_equal. f_equal. apply Hk.
 Qed.
+
+Inductive rt_closure {X:Type} (R: X -> X -> Prop) : X -> X -> Prop :=
+| rt_refl (x: X) : rt_closure R x x
+| rt_step (x y: X) (Hxy: R x y) : rt_closure R x y
+| rt_trans (x y z: X) (Hxy: rt_closure R x y) (Hyz: rt_closure R y z) : rt_closure R x z.
+
+Definition isDiagonal {X:Type} (R: X -> X -> Prop) : Prop :=
+  forall x y, R x y -> x = y.
+
+Theorem closure_of_diagonal_is_diagonal : forall (X:Type) (R: X -> X -> Prop),
+  isDiagonal R -> forall x y, rt_closure R x y -> x = y.
+Proof. intros X R Hdiag x y H. induction H as [x | x y Hxy | x y z Hxy IHxy Hyz IHyz].
+- reflexivity.
+- apply Hdiag in Hxy. apply Hxy.
+- rewrite IHxy. apply IHyz.
+Qed.
+
+Module Playground.
 
 Inductive le : nat -> nat -> Prop :=
-| le_0 (n:nat) : le n n
-| le_S (n m : nat) (H: le n m) : le n (S m).
+| le_n (n: nat) : le n n
+| le_S (n m: nat) (Hnm: le n m) : le n (S m).
 
 Theorem le_3_5 : le 3 5.
-Proof. apply le_S. apply le_S. apply le_0.
-Qed.
+Proof. apply le_S. apply le_S. apply le_n.
+Qed. 
+
+Definition lt (n m : nat) : Prop := le (S n) m.
+
+Notation "n <= m" := (le n m).
+
+Definition ge (n m :nat) : Prop := le m n.
+
+End Playground.
+
+Lemma le_n_Sn : forall n, le n (S n).
+Proof. intros n. apply le_S. apply le_n.  
+
+Lemma le_imp : forall n m, (S n) <= m -> n <= m.
+Proof. intros n m H. induction H as [| m' Hm' IHm'].
+
+Lemma le_trans : forall m n o, m <= n -> n <= o -> m <= o.
+Proof. intros m n o Hmn. induction Hmn as [ | n' Hkn' IHkn'].
+  - intros H. apply H.
+  - intros H.  
+
+Theorem O_le_n : forall n,
+  0 <= n.
+Proof.
+  (* FILL IN HERE *) Admitted.
+
+Theorem n_le_m__Sn_le_Sm : forall n m,
+  n <= m -> S n <= S m.
+Proof.
+  (* FILL IN HERE *) Admitted.
+
+Theorem Sn_le_Sm__n_le_m : forall n m,
+  S n <= S m -> n <= m.
+Proof.
+  (* FILL IN HERE *) Admitted.
+
+Theorem le_plus_l : forall a b,
+  a <= a + b.
+Proof.
+  (* FILL IN HERE *) Admitted.
+(** [] *)
 
 
 
