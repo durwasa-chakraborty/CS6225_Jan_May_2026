@@ -1,7 +1,7 @@
 (**
 Propositions in Rocq
 
-Ref. Software Foundations, Volume 1, Logic.v
+Ref. Software Foundations, Volume 1: Logic.v, IndProp.v
 *)
 
 
@@ -76,7 +76,7 @@ Proof.
 Qed.
 
 (** Logical Connectives : disjunction
-- The /\ operator is used to represent conjunction in propositions.
+- The \/ operator is used to represent disjunction in propositions.
 - Such propositions can be proved by using either of the two tactics: left
 or right (depending on which of the two disjuncts needs to be proven).
  *)
@@ -89,6 +89,12 @@ Proof.
   - right. reflexivity.
 Qed.
 
+Theorem or_commut : forall P Q : Prop,
+  P \/ Q  -> Q \/ P.
+Proof. intros P Q H. destruct H as [HP | HQ].
+- right. apply HP.
+- left. apply HQ. Qed.
+
 Lemma mult_is_O :
   forall n m, n * m = 0 -> n = 0 \/ m = 0.
 Proof. intros n m H. destruct n as [| n'].
@@ -99,7 +105,8 @@ Proof. intros n m H. destruct n as [| n'].
 Qed.
 
 (** Logical Connectives : negation
-- The negation operator (~) can be used to write negative propositions.
+- The negation operator (~) can be used to write negative propositions, i.e.
+propositions which are false.
 - Rocq uses the principle of explosion to encode negation: if a proposition
 does not hold, one can prove anything from such a proposition.
 - This is defined using a special proposition called False from which
@@ -109,7 +116,7 @@ Module NotPlayground.
 
 Definition not (P:Prop) := P -> False.
 
-Check not : Prop -> Prop.
+Check not.
 
 Notation "~ x" := (not x) : type_scope.
 
@@ -219,13 +226,9 @@ Proof.
 Qed.
 
 Theorem leb_plus_exists : forall n m, leb n m = true -> exists x, m = n+x.
-Proof. intros n. induction n as [| n' IHn'].
- - intros m. exists m. reflexivity.
- - intros m H. destruct m as [| m'].
-   -- discriminate H.
-   -- simpl in H. apply IHn' in H. destruct H as [x Hx]. exists x.
-      simpl. f_equal. apply Hx.
-Qed.
+Proof. intros n m H. exists (m-n). rewrite add_comm. rewrite sub_add_leb.
+reflexivity. apply H.
+Qed. 
 
 (** Inductively defined Propositions *)
 
@@ -235,6 +238,12 @@ Inductive ev : nat -> Prop :=
 
 Theorem ev_4 : ev 4.
 Proof. apply ev_SS. apply ev_SS. apply ev_0. Qed.
+
+Theorem ev_double : forall n, ev (double n).
+Proof. intros n. induction n as [| n' IHn']. 
+- simpl. apply ev_0.
+- simpl. apply ev_SS. apply IHn'.
+Qed. 
 
 Lemma ev_inversion : forall (n : nat),
     ev n ->
@@ -274,11 +283,7 @@ to discharge as many goals as possible. *)
 
 Theorem Even_ev_equiv : forall (n:nat), Even n <-> ev n.
 Proof. split.
-- intros H. unfold Even in H. destruct H as [n' Hn']. rewrite Hn'. assert (L: forall (m:nat), ev(double m)).
-{  intros m. induction m as [| m' IHm'].
-  -- simpl. apply ev_0.
-  -- simpl. apply ev_SS. apply IHm'.
-} apply L.
+- intros H. unfold Even in H. destruct H as [n' Hn']. rewrite Hn'. apply ev_double.
 - intros H. induction H as [| n' H' IHn'].
   -- unfold Even. exists 0. reflexivity.
   -- unfold Even in IHn'. destruct IHn' as [k Hk]. unfold Even.
@@ -318,38 +323,51 @@ Notation "n <= m" := (le n m).
 Definition ge (n m :nat) : Prop := le m n.
 
 End Playground.
-
-Lemma le_n_Sn : forall n, le n (S n).
-Proof. intros n. apply le_S. apply le_n.  
+ 
 
 Lemma le_imp : forall n m, (S n) <= m -> n <= m.
-Proof. intros n m H. induction H as [| m' Hm' IHm'].
+Proof. intros n m H . induction H as [| m' Hm' IHm'].
+- apply le_S. apply le_n.
+- apply le_S. apply IHm'.
+Qed.
 
 Lemma le_trans : forall m n o, m <= n -> n <= o -> m <= o.
-Proof. intros m n o Hmn. induction Hmn as [ | n' Hkn' IHkn'].
+Proof. intros m n o Hmn. induction Hmn as [ | n' Hn' IHn'].
   - intros H. apply H.
-  - intros H.  
+  - intros H. apply le_imp in H. apply IHn'. apply H.
+Qed.
 
 Theorem O_le_n : forall n,
   0 <= n.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros n. induction n as [| n' IHn'].
+  - apply le_n.
+  - apply le_S. apply IHn'.
+Qed.
 
 Theorem n_le_m__Sn_le_Sm : forall n m,
   n <= m -> S n <= S m.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros n m H. induction H as [| m' Hm' IHm'].
+  - apply le_n.
+  - apply le_S. apply IHm'.
+Qed.
 
 Theorem Sn_le_Sm__n_le_m : forall n m,
   S n <= S m -> n <= m.
 Proof.
-  (* FILL IN HERE *) Admitted.
-
+  intros n m H. inversion H.
+  - apply le_n.
+  - apply le_imp. apply H1.
+ Qed. 
+  
 Theorem le_plus_l : forall a b,
   a <= a + b.
 Proof.
-  (* FILL IN HERE *) Admitted.
-(** [] *)
+  intros a b. induction a as [| a' IHa'].
+  - simpl. apply O_le_n.
+  - simpl. apply n_le_m__Sn_le_Sm . apply IHa'.
+Qed.
 
 
 
