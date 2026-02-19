@@ -369,16 +369,23 @@ Proof.
   - simpl. apply n_le_m__Sn_le_Sm . apply IHa'.
 Qed.
 
+
+
 (**
 Curry-Howard Correspondence
-- Propositions as Types: every proposition corresponds to a type, and every proof of a proposition corresponds to a value of the corresponding type.
+- Propositions as Types: every proposition corresponds 
+ to a type, and every proof of a proposition corresponds
+ to a value of the corresponding type.
 
 propositions  ~  types
 proofs        ~  programs
 
-- The same symbol [->] is used to denote implication in propositions, and function types in types because of the Curry-Howard correspondence.
+- The same symbol [->] is used to denote implication in
+ propositions, and function types in types because of the
+ Curry-Howard correspondence.
 
-- Proving an implication P -> Q is the same as writing a function that takes a proof of P and produces a proof of Q.
+- Proving an implication P -> Q is the same as writing a 
+ function that takes a proof of P and produces a proof of Q.
 
 *)
 
@@ -391,8 +398,11 @@ Definition ev_4' : ev 4 := ev_SS 2 (ev_SS 0 ev_0).
 Print ev_4'.
 
 (**
-- The tactics used in the proof scripts essentially construct a proof object, i.e. a term whose value is the proposition that we are trying to prove. 
-- However, as shown above, the proof objects can also be constructed directly.
+- The tactics used in the proof scripts essentially construct
+ a proof object, i.e. a term whose value is the proposition
+ that we are trying to prove. 
+- However, as shown above, the proof objects can also be 
+ constructed directly.
 *)
 
 Theorem ev_plus4 : forall n, ev n -> ev (4 + n).
@@ -407,7 +417,9 @@ Definition ev_plus4'' (n : nat) (H : ev n) : ev (4 + n) :=
   ev_SS (2 + n) (ev_SS n H).
 
 (**
-Notice that the type of the second argument of ev_plus4'' uses n which is the first argument. This is an example of a so-called dependent type.
+ Notice that the type of the second argument of ev_plus4''
+ uses n which is the first argument. This is an example of
+ a so-called dependent type.
 *)
 
 Module Eq.
@@ -424,6 +436,43 @@ Theorem eq_val' : forall (X:Type) (x:X), x = x.
 Proof. intros X x. reflexivity. Qed.
 
 Print eq_val.
+
+Module And_Or.
+Inductive and (P Q : Prop) : Prop :=
+  | conj : P -> Q -> and P Q.
+  
+Arguments conj [P] [Q]. 
+  
+Notation "P /\ Q" := (and P Q) : type_scope.
+
+Theorem proj1' : forall P Q,
+  P /\ Q -> P.
+Proof. intros P Q H. destruct H as [HP HQ].  apply HP.
+Qed.
+
+Definition proj1'' (P Q : Prop) (H : P /\ Q) :=
+  match H with
+  | conj P Q => P
+  end. 
+  
+Print proj1'.
+
+Inductive or (P Q : Prop) : Prop :=
+  | or_introl : P -> or P Q
+  | or_intror : Q -> or P Q.
+Arguments or_introl [P] [Q].
+Arguments or_intror [P] [Q].
+Notation "P \/ Q" := (or P Q) : type_scope.
+
+Definition inj1 (P Q : Prop) (HP: P) : (P \/ Q) :=
+  or_introl HP.
+  
+Theorem inj1' : forall (P Q : Prop),
+  P -> P \/ Q.
+Proof. intros P Q HP. left. apply HP. Qed.
+
+Print inj1'.
+End And_Or.
 
 Module Nat.
 
