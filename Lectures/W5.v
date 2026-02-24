@@ -452,7 +452,7 @@ Qed.
 
 Definition proj1'' (P Q : Prop) (H : P /\ Q) :=
   match H with
-  | conj P Q => P
+  | conj HP HQ => HP
   end. 
   
 Print proj1'.
