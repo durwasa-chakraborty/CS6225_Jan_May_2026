@@ -288,7 +288,158 @@ required, then eauto can be used.
   
   {{ ??? }}  X := X + Y  {{ X = 1 }}
   
+  In general,
+
+    {{ Q [X |-> a] }}  X := a  {{ Q }}
+
+
+    Some more examples:
+  1. {{ (X <= 5) [X |-> X + 1] }}         (that is, X + 1 <= 5)
+        X := X + 1
+      {{ X <= 5 }}
+
+  2. {{ (X = 3) [X |-> 3] }}              (that is, 3 = 3)
+        X := 3
+      {{ X = 3 }}
+
+  3. {{ (0 <= X /\ X <= 5) [X |-> 3] }}.  (that is, 0 <= 3 /\ 3 <= 5)
+        X := 3
+      {{ 0 <= X /\ X <= 5 }}
+
   
 *)
 
+(**
+ To formalize the meaning of Q[ X |-> a], we essentially apply Q to a state where the variable X is mapped to the value of the arithmetic expression a.
+*)
 
+Definition assertion_sub X (a:aexp) (Q:Assertion) : Assertion :=
+  fun (st : state) =>
+    (Q%_assertion) (X !-> ((a:Aexp) st); st).
+
+Notation "Q [ X |-> a ]" := (assertion_sub X a Q)
+                              (in custom assn at level 10, left associativity,
+                               Q custom assn, X global, a custom com)
+                          : assertion_scope.
+
+Module ExampleAssertionSub.
+Example equivalent_assertion1 :
+  {{ (X <= 5) [X |-> 3] }} <<->> {{ 3 <= 5 }}.
+Proof.
+  split. 
+  - unfold assert_implies, assertion_sub. intros st H.
+  simpl. lia.
+  - unfold assert_implies, assertion_sub. intros st H. simpl. rewrite t_update_eq. lia.   
+Qed.
+
+Example equivalent_assertion2 :
+  {{ (X <= 5) [X |-> X + 1] }} <<->> {{ (X + 1) <= 5 }}.
+Proof.
+  split; unfold assert_implies, assertion_sub; intros st H;
+  simpl in *; apply H.
+Qed.
+End ExampleAssertionSub.
+
+(** Now, using the substitution operation we've just defined, we can
+    give the precise proof rule for assignment:
+
+      ---------------------------- (hoare_asgn)
+      {{Q [X |-> a]}} X := a {{Q}}
+*)
+
+Theorem hoare_asgn : forall Q X (a:aexp),
+  {{Q [X |-> a]}} X := a {{Q}}.
+Proof.
+  intros Q X a st st' HE HQ.
+  inversion HE. subst.
+  unfold assertion_sub in HQ. simpl in HQ. assumption.  Qed.
+
+(**
+Writing a valid hoare triple for assignment statement in the forward direction is not so straightforward.
+*)
+
+Theorem hoare_asgn_wrong : exists a:aexp,
+  ~ {{ True }} X := a {{ X = a }}.
+Proof. unfold valid_hoare_triple. exists <{X + 1}>.
+unfold not. intros. specialize H with (st := empty_st) (st' := (X !-> 1)). assert (C : (X !-> 1) X = aeval (X !-> 1) <{X + 1}>). apply H. constructor. reflexivity. apply I. simpl in C. discriminate C. Qed.
+
+(**
+ ------------------------------------------ (hoare_asgn_fwd)
+       {{fun st => P st /\ st X = m}}
+         X := a
+       {{fun st => P (X !-> m ; st) /\ st X = aeval (X !-> m ; st) a }}
+
+Homework: Try to prove this rule
+*)
+
+(**
+The assignment rule is quite syntactic in nature, and does not consider logical equivalence:
+
+{{(X = 3) [X |-> 3]}} X := 3 {{X = 3}},
+
+follows directly from the assignment rule, but
+
+{{True}} X := 3 {{X = 3}}
+
+However, [True] and [(X = 3) [X |-> 3]] are logically equivalent.
+
+*)
+
+(**
+Generalizing this observation gives the two rules of consequence:
+
+                {{P'}} c {{Q}}
+                   P ->> P'
+         -----------------------------   (hoare_consequence_pre)
+                {{P}} c {{Q}}
+
+
+                {{P}} c {{Q'}}
+                  Q' ->> Q
+         -----------------------------    (hoare_consequence_post)
+                {{P}} c {{Q}}
+
+*)
+
+Theorem hoare_consequence_pre : forall (P P' Q : Assertion) c,
+  {{P'}} c {{Q}} ->
+  P ->> P' ->
+  {{P}} c {{Q}}.
+Proof.
+  unfold valid_hoare_triple, "->>".
+  intros P P' Q c Hhoare Himp st st' Heval Hpre.
+  apply Hhoare with (st := st).
+  - assumption.
+  - apply Himp. assumption.
+Qed.
+
+Theorem hoare_consequence_post : forall (P Q Q' : Assertion) c,
+  {{P}} c {{Q'}} ->
+  Q' ->> Q ->
+  {{P}} c {{Q}}.
+Proof. unfold valid_hoare_triple, "->>".
+  intros P Q Q' c HHoare Himp st st' He HP.
+  apply Himp. apply HHoare with (st := st).
+  - apply He.
+  - apply HP.
+Qed.
+
+Example hoare_asgn_example1 :
+  {{True}} X := 1 {{X = 1}}.
+Proof.
+  eapply hoare_consequence_pre.
+  - apply hoare_asgn.
+  - unfold "->>", assertion_sub, t_update; simpl.
+    intros st _. reflexivity.
+Qed.
+
+Example assertion_sub_example2 :
+  {{X < 4}}
+    X := X + 1
+  {{X < 5}}.
+Proof.
+  eapply hoare_consequence_pre.
+  - apply hoare_asgn.
+  - unfold "->>", assertion_sub, t_update.
+    intros st H. simpl in *. lia.
+Qed.
