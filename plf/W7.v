@@ -315,7 +315,7 @@ required, then eauto can be used.
 
 Definition assertion_sub X (a:aexp) (Q:Assertion) : Assertion :=
   fun (st : state) =>
-    (Q%_assertion) (X !-> ((a:Aexp) st); st).
+    (Q%_assertion) (X !-> (aeval st a); st).
 
 Notation "Q [ X |-> a ]" := (assertion_sub X a Q)
                               (in custom assn at level 10, left associativity,
@@ -352,7 +352,7 @@ Theorem hoare_asgn : forall Q X (a:aexp),
 Proof.
   intros Q X a st st' HE HQ.
   inversion HE. subst.
-  unfold assertion_sub in HQ. simpl in HQ. assumption.  Qed.
+  unfold assertion_sub in HQ. assumption.  Qed.
 
 (**
 Writing a valid hoare triple for assignment statement in the forward direction is not so straightforward.
@@ -377,7 +377,7 @@ The assignment rule is quite syntactic in nature, and does not consider logical 
 
 {{(X = 3) [X |-> 3]}} X := 3 {{X = 3}},
 
-follows directly from the assignment rule, but
+follows directly from the assignment rule, but not
 
 {{True}} X := 3 {{X = 3}}
 
@@ -442,4 +442,33 @@ Proof.
   - apply hoare_asgn.
   - unfold "->>", assertion_sub, t_update.
     intros st H. simpl in *. lia.
+Qed.
+
+Example hoare_asgn_example4 :
+  {{ True }}
+    X := 1;
+    Y := 2
+  {{ X = 1 /\ Y = 2 }}.
+Proof. eapply hoare_seq. apply hoare_asgn. eapply hoare_consequence_pre.
+  - apply hoare_asgn.
+  - unfold "->>", assertion_sub. intros. split; reflexivity.
+Qed.   
+
+Definition swap_program : com := 
+<{ Z := X;
+X := Y;
+Y := Z
+}>.
+
+Theorem swap_exercise :
+  {{X <= Y}}
+    swap_program
+  {{Y <= X}}.
+Proof. eapply hoare_seq.
+  - eapply hoare_seq.
+    * apply hoare_asgn.
+    * unfold assertion_sub. simpl. apply hoare_asgn.
+  - unfold assertion_sub; simpl. eapply hoare_consequence_pre.
+    * apply hoare_asgn.
+    * unfold "->>". intros. apply H.
 Qed.
