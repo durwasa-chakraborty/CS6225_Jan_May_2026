@@ -472,3 +472,222 @@ Proof. eapply hoare_seq.
     * apply hoare_asgn.
     * unfold "->>". intros. apply H.
 Qed.
+
+(** Proof rule for if-then-else:
+
+              {{P /\   b}} c1 {{Q}}
+              {{P /\ ~ b}} c2 {{Q}}
+      ------------------------------------  (hoare_if)
+      {{P}} if b then c1 else c2 end {{Q}}
+*)
+
+Definition bassertion b : Assertion :=
+  fun st => (beval st b = true).
+
+Coercion bassertion : bexp >-> Assertion.
+
+Arguments bassertion /.
+
+(** A useful fact about [bassertion]: *)
+
+Lemma bexp_eval_false : forall b st,
+  beval st b = false -> ~ ((bassertion b) st).
+Proof. intros. unfold not;intros. unfold bassertion in H0.  
+rewrite H in H0; discriminate H0. Qed.
+
+Hint Resolve bexp_eval_false : core.
+
+
+Theorem hoare_if : forall P Q (b:bexp) c1 c2,
+  {{ P /\ b }} c1 {{Q}} ->
+  {{ P /\ ~ b}} c2 {{Q}} ->
+  {{P}} if b then c1 else c2 end {{Q}}.
+Proof.  intros P Q b c1 c2 HTrue HFalse st st' HE HP.
+  inversion HE; subst; eauto.
+Qed.
+
+Example if_example :
+  {{True}}
+    if (X = 0)
+      then Y := 2
+      else Y := X + 1
+    end
+  {{X <= Y}}.
+Proof.
+  apply hoare_if.
+  - (* Then *)
+    eapply hoare_consequence_pre.
+    + apply hoare_asgn.
+    + unfold "->>", assertion_sub, t_update, bassertion.
+      simpl. intros st [_ H]. apply eqb_eq in H.
+      rewrite H. lia.
+  - (* Else *)
+    eapply hoare_consequence_pre.
+    + apply hoare_asgn.
+    + unfold "->>", assertion_sub, t_update. simpl. lia.  
+Qed.
+
+(** Proof rule for while b do c end:
+
+            {{P /\ b}} c {{P}}
+      --------------------------------- (hoare_while)
+      {{P} while b do c end {{P /\ ~b}}
+
+P is also called an inductive loop invariant.
+*)
+
+Theorem hoare_while : forall P (b:bexp) c,
+  {{P /\ b}} c {{P}} ->
+  {{P}} while b do c end {{P /\ ~ b}}.
+Proof.
+  intros P b c Hhoare st st' Heval HP.
+  remember <{while b do c end}> as original_command eqn:Horig.
+  induction Heval; try (discriminate Horig). 
+  - split. assumption. injection Horig as H1 H2. subst. auto.  
+  - injection Horig as H1 H2; subst; eauto.
+Qed. 
+
+Example while_example :
+  {{X <= 3}}
+    while (X <= 2) do
+      X := X + 1
+    end
+  {{X = 3}}.
+ Proof.
+  eapply hoare_consequence_post.
+  - apply hoare_while.
+    eapply hoare_consequence_pre.
+    + apply hoare_asgn.
+    + unfold "->>", assertion_sub, t_update, bassertion; simpl.
+    intros. destruct H as [H1 H2]. apply leb_le in H2. lia.
+  - unfold "->>", assertion_sub, t_update, bassertion; simpl.
+    intros. destruct H as [H1 H2]. unfold not in H2. rewrite -> leb_le in H2. lia. 
+Qed.
+
+Module HoareAssertAssume.
+
+(**
+An alternative method of specifying correctness of programs is to use the [assume] and [assert] commands.
+
+- [assert P] evaluates P and if it fails, causes the program to go into a special error state and exit.
+- [assume P] evaluate P, and if it fails, the program gets stuck and has no final state.
+
+*)
+
+Inductive com : Type :=
+  | CSkip : com
+  | CAsgn : string -> aexp -> com
+  | CSeq : com -> com -> com
+  | CIf : bexp -> com -> com -> com
+  | CWhile : bexp -> com -> com
+  | CAssert : bexp -> com
+  | CAssume : bexp -> com.
+
+Notation "'assert' l" := (CAssert l)
+                           (in custom com at level 8, l custom com at level 0).
+Notation "'assume' l" := (CAssume l)
+                          (in custom com at level 8, l custom com at level 0).
+Notation "'skip'"  := CSkip
+  (in custom com at level 0) : com_scope.
+Notation "x := y"  := (CAsgn x y)
+  (in custom com at level 0, x constr at level 0, y at level 85, no associativity,
+    format "x  :=  y") : com_scope.
+Notation "x ; y" := (CSeq x y)
+  (in custom com at level 90,
+    right associativity,
+    format "'[v' x ; '/' y ']'") : com_scope.
+Notation "'if' x 'then' y 'else' z 'end'" := (CIf x y z)
+  (in custom com at level 89, x at level 99, y at level 99, z at level 99,
+    format "'[v' 'if'  x  'then' '/  ' y '/' 'else' '/  ' z '/' 'end' ']'") : com_scope.
+Notation "'while' x 'do' y 'end'" := (CWhile x y)
+  (in custom com at level 89, x at level 99, y at level 99,
+    format "'[v' 'while'  x  'do' '/  ' y '/' 'end' ']'") : com_scope.
+
+Inductive result : Type :=
+  | RNormal : state -> result
+  | RError : result.
+
+(** Now we are ready to give you the ceval relation for the new language. *)
+
+Inductive ceval : com -> state -> result -> Prop :=
+  (* Old rules, several modified *)
+  | E_Skip : forall st,
+      st =[ skip ]=> RNormal st
+  | E_Asgn  : forall st a1 n x,
+      aeval st a1 = n ->
+      st =[ x := a1 ]=> RNormal (x !-> n ; st)
+  | E_SeqNormal : forall c1 c2 st st' r,
+      st  =[ c1 ]=> RNormal st' ->
+      st' =[ c2 ]=> r ->
+      st  =[ c1 ; c2 ]=> r
+  | E_SeqError : forall c1 c2 st,
+      st =[ c1 ]=> RError ->
+      st =[ c1 ; c2 ]=> RError
+  | E_IfTrue : forall st r b c1 c2,
+      beval st b = true ->
+      st =[ c1 ]=> r ->
+      st =[ if b then c1 else c2 end ]=> r
+  | E_IfFalse : forall st r b c1 c2,
+      beval st b = false ->
+      st =[ c2 ]=> r ->
+      st =[ if b then c1 else c2 end ]=> r
+  | E_WhileFalse : forall b st c,
+      beval st b = false ->
+      st =[ while b do c end ]=> RNormal st
+  | E_WhileTrueNormal : forall st st' r b c,
+      beval st b = true ->
+      st  =[ c ]=> RNormal st' ->
+      st' =[ while b do c end ]=> r ->
+      st  =[ while b do c end ]=> r
+  | E_WhileTrueError : forall st b c,
+      beval st b = true ->
+      st =[ c ]=> RError ->
+      st =[ while b do c end ]=> RError
+  (* Rules for Assert and Assume *)
+  | E_AssertTrue : forall st b,
+      beval st b = true ->
+      st =[ assert b ]=> RNormal st
+  | E_AssertFalse : forall st b,
+      beval st b = false ->
+      st =[ assert b ]=> RError
+  | E_Assume : forall st b,
+      beval st b = true ->
+      st =[ assume b ]=> RNormal st
+
+where "st '=[' c ']=>' r" := (ceval c st r).
+
+(** We redefine hoare triples: Now, [{{P}} c {{Q}}] means that,
+    whenever [c] is started in a state satisfying [P], and terminates
+    with result [r], then [r] is not an error and the state of [r]
+    satisfies [Q]. *)
+
+Definition valid_hoare_triple
+           (P : Assertion) (c : com) (Q : Assertion) : Prop :=
+  forall st r,
+     st =[ c ]=> r  -> P st  ->
+     (exists st', r = RNormal st' /\ Q st').
+
+Notation "{{ P }} c {{ Q }}" :=
+  (valid_hoare_triple P c Q)
+    (at level 2, P custom assn at level 99, c custom com at level 99, Q custom assn at level 99)
+    : hoare_spec_scope.
+
+Theorem assert_assume_differ : exists (P:Assertion) b (Q:Assertion),
+       ({{P}} assume b {{Q}})
+  /\ ~ ({{P}} assert b {{Q}}).
+Proof. exists ({{X = 1}}). exists <{X <> 1 }>. exists ({{X = 1}}).
+  split.
+  - intros st r He HP. inversion He; subst. simpl in H0. simpl in HP. rewrite HP in H0. apply negb_true_iff in H0. simpl in H0.
+  discriminate H0.
+  - unfold not; intros. unfold valid_hoare_triple in H. specialize H with (st := (X !-> 1)) (r := RError). 
+  assert (C : (X !-> 1) =[ assert (X <> 1) ]=> RError).
+  { apply E_AssertFalse. reflexivity. }
+  apply H in C. destruct C as [st' C]. destruct C as [C1 C2].
+  discriminate C1. reflexivity.
+Qed.
+
+
+
+
+
+
