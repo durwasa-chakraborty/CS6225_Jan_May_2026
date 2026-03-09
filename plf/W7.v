@@ -433,7 +433,7 @@ Proof.
     intros st _. reflexivity.
 Qed.
 
-Example assertion_sub_example2 :
+Example hoare_asgn_example2 :
   {{X < 4}}
     X := X + 1
   {{X < 5}}.
@@ -443,16 +443,6 @@ Proof.
   - unfold "->>", assertion_sub, t_update.
     intros st H. simpl in *. lia.
 Qed.
-
-Example hoare_asgn_example4 :
-  {{ True }}
-    X := 1;
-    Y := 2
-  {{ X = 1 /\ Y = 2 }}.
-Proof. eapply hoare_seq. apply hoare_asgn. eapply hoare_consequence_pre.
-  - apply hoare_asgn.
-  - unfold "->>", assertion_sub. intros. split; reflexivity.
-Qed.   
 
 Definition swap_program : com := 
 <{ Z := X;
@@ -686,6 +676,32 @@ Proof. exists ({{X = 1}}). exists <{X <> 1 }>. exists ({{X = 1}}).
   discriminate C1. reflexivity.
 Qed.
 
+
+(* Homework *)
+Theorem assert_implies_assume : forall P b Q,
+     ({{P}} assert b {{Q}})
+  -> ({{P}} assume b {{Q}}).
+Proof.
+(* FILL IN HERE *) Admitted.
+
+Theorem hoare_assume: forall (P: Assertion) b,
+{{P}} assume b {{P /\ b}}.
+Proof. intros P b st r HE HP. inversion HE; subst. exists st. split.
+  - reflexivity.
+  - split; assumption.
+Qed.
+
+Theorem hoare_assert: forall (P: Assertion) (b : bexp),
+(P ->> b) -> {{P}} assert b {{P}}.
+Proof. intros P b H st r HE HP. inversion HE; subst.
+  - exists st. split.
+    * reflexivity.
+    * assumption.
+  - unfold "->>" in H. apply H in HP. simpl in HP. rewrite HP in H1.
+    discriminate H1.
+Qed. 
+
+End HoareAssertAssume.
 
 
 
