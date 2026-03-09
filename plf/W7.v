@@ -114,7 +114,7 @@ $() syntax:*)
 
 Definition assertion10 : Assertion := {{$(fun st => forall X, st X = 0)}}.
 
-Print assertion1.
+Print assertion5.
 
 Example assertion1_ex : assertion1 (X !-> 3).
 Proof. unfold assertion1. unfold t_update. simpl. reflexivity.
@@ -310,7 +310,8 @@ required, then eauto can be used.
 *)
 
 (**
- To formalize the meaning of Q[ X |-> a], we essentially apply Q to a state where the variable X is mapped to the value of the arithmetic expression a.
+ To formalize the meaning of Q[ X |-> a], we essentially apply Q to a state
+  where the variable X is mapped to the value of the arithmetic expression a.
 *)
 
 Definition assertion_sub X (a:aexp) (Q:Assertion) : Assertion :=
@@ -355,13 +356,16 @@ Proof.
   unfold assertion_sub in HQ. assumption.  Qed.
 
 (**
-Writing a valid hoare triple for assignment statement in the forward direction is not so straightforward.
+Writing a valid hoare triple for assignment statement in the forward direction
+is not so straightforward.
 *)
 
 Theorem hoare_asgn_wrong : exists a:aexp,
   ~ {{ True }} X := a {{ X = a }}.
 Proof. unfold valid_hoare_triple. exists <{X + 1}>.
-unfold not. intros. specialize H with (st := empty_st) (st' := (X !-> 1)). assert (C : (X !-> 1) X = aeval (X !-> 1) <{X + 1}>). apply H. constructor. reflexivity. apply I. simpl in C. discriminate C. Qed.
+unfold not. intros. specialize H with (st := empty_st) (st' := (X !-> 1)).
+ assert (C : (X !-> 1) X = aeval (X !-> 1) <{X + 1}>). apply H. constructor. 
+ reflexivity. apply I. simpl in C. discriminate C. Qed.
 
 (**
  ------------------------------------------ (hoare_asgn_fwd)
@@ -370,10 +374,24 @@ unfold not. intros. specialize H with (st := empty_st) (st' := (X !-> 1)). asser
        {{fun st => P (X !-> m ; st) /\ st X = aeval (X !-> m ; st) a }}
 
 Homework: Try to prove this rule
+Hint: The lemmas t_update_shadow and t_update_same defined in Maps.v 
+(in the plf folder) will be handy in the proof.
 *)
 
+Theorem hoare_asgn_fwd :
+  forall (m:nat) (a:aexp) (P : Assertion),
+  {{P /\ X = m}}
+    X := a
+  {{ $(fun st => (P (X !-> m ; st)
+             /\ st X = aeval (X !-> m ; st) a)) }}.
+Proof.
+  (* FILL IN HERE *) Admitted.
+
+
+
 (**
-The assignment rule is quite syntactic in nature, and does not consider logical equivalence:
+The assignment rule is quite syntactic in nature, and does not consider
+logical equivalence:
 
 {{(X = 3) [X |-> 3]}} X := 3 {{X = 3}},
 
@@ -557,10 +575,13 @@ Qed.
 Module HoareAssertAssume.
 
 (**
-An alternative method of specifying correctness of programs is to use the [assume] and [assert] commands.
+An alternative method of specifying correctness of programs is to use the
+[assume] and [assert] commands.
 
-- [assert P] evaluates P and if it fails, causes the program to go into a special error state and exit.
-- [assume P] evaluate P, and if it fails, the program gets stuck and has no final state.
+- [assert P] evaluates P and if it fails, causes the program to go into
+ a special error state and exit.
+- [assume P] evaluate P, and if it fails, the program gets stuck and
+ has no final state.
 
 *)
 
