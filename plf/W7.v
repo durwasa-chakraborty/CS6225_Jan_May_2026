@@ -1,3 +1,10 @@
+(**
+
+Hoare Logic
+Ref.: Software Foundations, Volume 2, Hoare.v, Hoare2.v
+
+*)
+
 Set Warnings "-notation-overridden".
 From PLF Require Import Maps.
 Require Import Bool.
@@ -575,13 +582,13 @@ Qed.
 Module HoareAssertAssume.
 
 (**
-An alternative method of specifying correctness of programs is to use the
-[assume] and [assert] commands.
+An alternative method of specifying correctness of programs is to 
+use the [assume] and [assert] commands.
 
-- [assert P] evaluates P and if it fails, causes the program to go into
- a special error state and exit.
-- [assume P] evaluate P, and if it fails, the program gets stuck and
- has no final state.
+- [assert P] evaluates P and if it fails, causes the program to go
+ into a special error state and exit.
+- [assume P] evaluate P, and if it fails, the program gets stuck 
+ and has no final state.
 
 *)
 
@@ -618,7 +625,8 @@ Inductive result : Type :=
   | RNormal : state -> result
   | RError : result.
 
-(** Now we are ready to give you the ceval relation for the new language. *)
+(** Now we are ready to give you the ceval relation for the 
+    new language. *)
 
 Inductive ceval : com -> state -> result -> Prop :=
   (* Old rules, several modified *)
@@ -686,11 +694,13 @@ Notation "{{ P }} c {{ Q }}" :=
 Theorem assert_assume_differ : exists (P:Assertion) b (Q:Assertion),
        ({{P}} assume b {{Q}})
   /\ ~ ({{P}} assert b {{Q}}).
-Proof. exists ({{X = 1}}). exists <{X <> 1 }>. exists ({{X = 1}}).
+Proof. exists ({{X = 1}}). exists <{ X <> 1 }>. exists ({{X = 1}}).
   split.
-  - intros st r He HP. inversion He; subst. simpl in H0. simpl in HP. rewrite HP in H0. apply negb_true_iff in H0. simpl in H0.
+  - intros st r He HP. inversion He; subst. simpl in H0. simpl in HP.
+   rewrite HP in H0. apply negb_true_iff in H0. simpl in H0.
   discriminate H0.
-  - unfold not; intros. unfold valid_hoare_triple in H. specialize H with (st := (X !-> 1)) (r := RError). 
+  - unfold not; intros. unfold valid_hoare_triple in H. 
+  specialize H with (st := (X !-> 1)) (r := RError). 
   assert (C : (X !-> 1) =[ assert (X <> 1) ]=> RError).
   { apply E_AssertFalse. reflexivity. }
   apply H in C. destruct C as [st' C]. destruct C as [C1 C2].
@@ -724,7 +734,178 @@ Qed.
 
 End HoareAssertAssume.
 
+(**
+A major advantage of using the proof rules of Hoare Logic is that
+the structure of the proof of correctness follows the structure of
+the program.
 
+We make this connection explicit by 'decorating' a program with 
+its proof.
+*)
 
+(**
+Consider the following swapping program:
 
+{{X = m /\ Y = n}}
+X := X + Y;
+Y := X - Y;
+X := X - Y
+{{X = n /\ Y = m}}
 
+Its proof of correctness:
+    (1)    {{ X = m /\ Y = n }} ->>
+    (2)    {{ (X + Y) - ((X + Y) - Y) = n /\ (X + Y) - Y = m }}
+             X := X + Y
+    (3)                     {{ X - (X - Y) = n /\ X - Y = m }};
+             Y := X - Y
+    (4)                     {{ X - Y = n /\ Y = m }};
+             X := X - Y
+    (5)    {{ X = n /\ Y = m }}
+*)
+
+(** Here is a decorated program using conditionals:
+
+      (1)   {{ True }}
+              if X <= Y then
+      (2)                    {{ True /\ X <= Y }} ->>
+      (3)                    {{ (Y - X) + X = Y \/ (Y - X) + Y = X }}
+                Z := Y - X
+      (4)                    {{ Z + X = Y \/ Z + Y = X }}
+              else
+      (5)                    {{ True /\ ~(X <= Y) }} ->>
+      (6)                    {{ (X - Y) + X = Y \/ (X - Y) + Y = X }}
+                Z := X - Y
+      (7)                    {{ Z + X = Y \/ Z + Y = X }}
+              end
+      (8)   {{ Z + X = Y \/ Z + Y = X }}
+*)
+
+(** Example with loops:
+
+The following Imp program calculates the integer quotient and
+    remainder of parameters [m] and [n].
+
+      {{True}}
+       X := m;
+       Y := 0;
+       while n <= X do
+         X := X - n;
+         Y := Y + 1
+       end;
+      {{n * Y + X = m /\ X < n}}
+   
+   Loop invariant is {{n * Y + X = m}}
+   
+   Decorated Program:
+   
+      (1)  {{ True }} ->>
+      (2)  {{ n * 0 + m = m }}
+             X := m;
+      (3)                     {{ n * 0 + X = m }}
+             Y := 0;
+      (4)                     {{ n * Y + X = m }}
+             while n <= X do
+      (5)                     {{ n * Y + X = m /\ n <= X }} ->>
+      (6)                     {{ n * (Y + 1) + (X - n) = m }}
+               X := X - n;
+      (7)                     {{ n * (Y + 1) + X = m }}
+               Y := Y + 1
+      (8)                     {{ n * Y + X = m }}
+             end
+      (9)  {{ n * Y + X = m /\ ~ (n <= X) }} ->>
+     (10)  {{ n * Y + X = m /\ X < n }}
+*)
+
+Inductive dcom : Type :=
+| DCSkip (Q : Assertion)
+  (* skip {{ Q }} *)
+| DCSeq (d1 d2 : dcom)
+  (* d1 ; d2 *)
+| DCAsgn (X : string) (a : aexp) (Q : Assertion)
+  (* X := a {{ Q }} *)
+| DCIf (b : bexp) (P1 : Assertion) (d1 : dcom)
+       (P2 : Assertion) (d2 : dcom) (Q : Assertion)
+  (* if b then {{ P1 }} d1 else {{ P2 }} d2 end {{ Q }} *)
+| DCWhile (b : bexp) (P : Assertion) (d : dcom)
+          (Q : Assertion)
+  (* while b do {{ P }} d end {{ Q }} *)
+| DCPre (P : Assertion) (d : dcom)
+  (* ->> {{ P }} d *)
+| DCPost (d : dcom) (Q : Assertion)
+  (* d ->> {{ Q }} *).
+
+Inductive decorated : Type :=
+  | Decorated : Assertion -> dcom -> decorated.
+
+Declare Scope dcom_scope.
+Notation "'skip' '{{' P '}}'" := (DCSkip P)
+  (in custom com at level 0,
+    P custom assn at level 99,
+    format "'[v' 'skip' '/' '{{' P '}}' ']'") : dcom_scope.
+Notation "l ':=' a '{{' P '}}'" := (DCAsgn l a P)
+  (in custom com at level 0,
+    l constr at level 0,
+    a custom com at level 85,
+    P custom assn at level 99,
+    no associativity,
+    format "'[v' l  ':='  a '/' '{{'  P  '}}' ']'") : dcom_scope.
+Notation "'while' b 'do' '{{' Pbody '}}' d 'end' '{{' Ppost '}}'" := (DCWhile b Pbody d Ppost)
+  (in custom com at level 89,
+    b custom com at level 99,
+    Pbody custom assn at level 99,
+    Ppost custom assn at level 99,
+    format "'[v' 'while'  b  'do' '/  ' '{{' Pbody '}}' '/  ' d '/' 'end' '/' '{{' Ppost '}}' ']'") : dcom_scope.
+Notation "'if' b 'then' {{ P1 }} d1 'else' {{ P2 }} d2 'end' {{ Q }}" := (DCIf b P1 d1 P2 d2 Q)
+  (in custom com at level 89,
+    b custom com at level 99,
+    P1 custom assn at level 99,
+    P2 custom assn at level 99,
+    Q custom assn at level 99,
+    format "'[v' 'if'  b  'then' '/  ' '{{' P1 '}}' '/  ' d1 '/' 'else' '/  ' '{{' P2 '}}' '/  ' d2 '/' 'end' '/' '{{' Q '}}' ']'"): dcom_scope.
+Notation "'->>' {{ P }} d"
+      := (DCPre P d)
+          (in custom com at level 12, right associativity, P custom assn at level 99)
+          : dcom_scope.
+Notation "d '->>' {{ P }}"
+      := (DCPost d P)
+           (in custom com at level 10, right associativity, P custom assn at level 99)
+           : dcom_scope.
+Notation "x ; y" := (DCSeq x y)
+  (in custom com at level 90,
+    right associativity,
+    format "'[v' x ; '/' y ']'") : dcom_scope.
+Notation "{{ P }} d" := (Decorated P d)
+  (in custom com at level 91,
+    P custom assn at level 99,
+    format "'[v' '{{'  P  '}}' '/' d ']'"): dcom_scope.
+
+Local Open Scope dcom_scope.
+
+Example dec0 : dcom :=
+  <{ skip {{ True }} }>.
+Example dec1 : dcom :=
+  <{ while true do {{ True }} skip {{ True }} end {{ True }} }>.
+
+Example swap (m n : nat) : decorated :=
+ <{
+ {{X = m /\ Y = n}} ->>
+ {{(X + Y) - ((X + Y) - Y) = n /\ (X + Y) - Y = m}}  
+   X := X + Y
+   {{X - (X - Y) = n /\ X - Y = m}};
+   Y := X - Y
+   {{X - Y = n /\ Y = m}};
+   X := X - Y
+   {{X = n /\ Y = m}}
+ }>.
+
+Example dec_while : decorated :=
+  <{
+  {{ True }}
+    while X <> 0
+    do
+                 {{ True /\ (X <> 0) }}
+      X := X - 1
+                 {{ True }}
+    end
+  {{ True /\  X = 0}} ->>
+  {{ X = 0 }} }>.
