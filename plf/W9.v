@@ -259,3 +259,210 @@ Example dec_while_triple_correct :
        while X <> 0 do X := X - 1 end
      {{ X = 0 }}.
 Proof. reflexivity. Qed.
+
+(**
+The VC generator takes a [dcom] and a pre-condition [P] and generates
+a proposition whose correctness determines the validity of the
+Hoare Triple obtained from [dcom] and [P].
+*)
+
+Fixpoint verification_conditions (P : Assertion) (d : dcom) : Prop :=
+  match d with
+  | DCSkip Q =>
+         (P ->> Q)
+  | DCSeq d1 d2 =>
+         verification_conditions P d1
+      /\ verification_conditions (post d1) d2
+  | DCAsgn X a Q =>
+          P ->> {{ Q [X |-> a] }}
+  | DCIf b P1 d1 P2 d2 Q =>
+         {{ P /\ b }} ->> P1
+      /\ {{ P /\ ~ b }}  ->> P2
+      /\ (post d1 ->> Q) /\ (post d2 ->> Q)
+      /\ verification_conditions P1 d1
+      /\ verification_conditions P2 d2
+  | DCWhile b Q d R =>
+      (* (post d) is both the loop invariant and the initial
+         precondition *)
+         (P ->> post d)
+      /\ {{ $(post d) /\ b }} ->> Q
+      /\ {{ $(post d) /\ ~ b }} ->> R
+      /\ verification_conditions Q d
+  | DCPre P' d =>
+         (P ->> P')
+      /\ verification_conditions P' d
+  | DCPost d Q =>
+         verification_conditions P d
+      /\ (post d ->> Q)
+  end.
+
+Theorem verification_correct : forall d P,
+  verification_conditions P d -> {{P}} erase d {{ $(post d) }}.
+Proof.
+  induction d; intros; simpl in *.
+  - (* Skip *)
+    eapply hoare_consequence_pre.
+      + apply hoare_skip.
+      + assumption.
+  - (* Seq *)
+    destruct H as [H1 H2].
+    eapply hoare_seq.
+      + apply IHd2. apply H2.
+      + apply IHd1. apply H1.
+  - (* Asgn *)
+    eapply hoare_consequence_pre.
+      + apply hoare_asgn.
+      + assumption.
+  - (* If *)
+    destruct H as [HPre1 [HPre2 [Hd1 [Hd2 [HThen HElse] ] ] ] ].
+    apply IHd1 in HThen. clear IHd1.
+    apply IHd2 in HElse. clear IHd2.
+    apply hoare_if.
+      + eapply hoare_consequence_pre; eauto.
+        eapply hoare_consequence_post; eauto.
+      + eapply hoare_consequence_pre; eauto.
+        eapply hoare_consequence_post; eauto.
+  - (* While *)
+    destruct H as [Hpre [Hbody1 [Hpost1  Hd] ] ].
+    eapply hoare_consequence_pre; eauto.
+    eapply hoare_consequence_post; eauto.
+    apply hoare_while.
+    eapply hoare_consequence_pre; eauto.
+  - (* Pre *)
+    destruct H as [HP Hd].
+    eapply hoare_consequence_pre; eauto.
+  - (* Post *)
+    destruct H as [Hd HQ].
+    eapply hoare_consequence_post; eauto.
+Qed.
+
+Definition verification_conditions_from
+              (dec : decorated) : Prop :=
+  match dec with
+  | Decorated P d => verification_conditions P d
+  end.
+
+
+Corollary verification_conditions_correct : forall dec,
+  verification_conditions_from dec ->
+  outer_triple_valid dec.
+Proof.
+  intros [P d]. apply verification_correct.
+Qed.
+
+Eval simpl in verification_conditions_from dec_while.
+
+Ltac verify_assertion :=
+  repeat split;
+  simpl;
+  unfold assert_implies;
+  unfold bassertion in *; unfold beval in *; unfold aeval in *;
+  unfold assertion_sub; intros;
+  repeat (simpl in *;
+          rewrite t_update_eq ||
+          (try rewrite t_update_neq;
+          [| (intro X; inversion X; fail)]));
+  simpl in *;
+  repeat match goal with [H : _ /\ _ |- _] =>
+                         destruct H end;
+  repeat rewrite not_true_iff_false in *;
+  repeat rewrite not_false_iff_true in *;
+  repeat rewrite negb_true_iff in *;
+  repeat rewrite negb_false_iff in *;
+  repeat rewrite eqb_eq in *;
+  repeat rewrite eqb_neq in *;
+  repeat rewrite leb_iff in *;
+  repeat rewrite leb_iff_conv in *;
+  try subst;
+  simpl in *;
+  repeat
+    match goal with
+      [st : state |- _] =>
+        match goal with
+        | [H : st _ = _ |- _] =>
+            rewrite -> H in *; clear H
+        | [H : _ = st _ |- _] =>
+            rewrite <- H in *; clear H
+        end
+    end;
+  try eauto;
+  try lia.
+  
+Example vc_dec_while : verification_conditions_from dec_while.
+Proof. verify_assertion. Qed.
+
+Definition positive_difference_dec :=
+  <{
+    {{True}}
+    if X <= Y then
+          {{(Y - X) + X = Y \/ (Y - X) + Y = X}}
+      Z := Y - X
+          {{Z + X = Y \/ Z + Y = X}}
+    else
+          {{(X - Y) + X = Y \/ (X - Y) + Y = X}}
+      Z := X - Y
+          {{Z + X = Y \/ Z + Y = X}}
+    end
+    {{Z + X = Y \/ Z + Y = X}}
+  }>.
+  
+Example vc_positive_difference_dec : verification_conditions_from
+  positive_difference_dec.
+Proof. verify_assertion. Qed.
+
+Definition div_mod_dec (a b : nat) : decorated :=
+  <{
+  {{ True }} 
+    X := a
+             {{ 0 * Y + X = a }};
+    Y := 0
+             {{ b * Y + X = a }};
+    while b <= X do
+             {{ b * (Y + 1) + (X - b) = a }}
+      X := X - b
+             {{ b * (Y + 1) + X = a }};
+      Y := Y + 1
+             {{ b * Y + X = a }}
+    end
+  {{ b * Y + X = a /\ X < b }} }>.
+  
+Example vc_div_mod_dec : forall a b, verification_conditions_from
+  (div_mod_dec a b).
+Proof. verify_assertion. Qed. 
+
+(**
+Determining loop invariants
+- To prove validity of a hoare triple {{P}} while b do c {{Q}}, we
+need to determine a loop invariant I which should satisfy the
+following properties:
+  * P ->> I
+  * I /\ ~b ->> Q
+  * {{I /\ b}} c {{I}} should be a valid hoare triple
+*)
+
+(**
+Example:
+          {{ X = m /\ Y = n }}
+             while X <> 0 do
+               Y := Y - 1;
+               X := X - 1
+             end
+           {{ Y = n - m }}
+
+*)
+
+Example subtract_slowly_dec (m : nat) (n : nat) : decorated :=
+  <{
+  {{ X = m /\  Y = n }}
+    while X <> 0 do
+                  {{ (Y - 1) - (X - 1) = n - m  }}
+       Y := Y - 1
+                  {{ Y - (X - 1) = n - m }} ;
+       X := X - 1
+                  {{ Y - X = n - m}}
+    end
+  {{ Y = n - m }} }>.
+  
+Example vc_subtract_slowly_dec : forall m n, 
+verification_conditions_from (subtract_slowly_dec m n).
+Proof. verify_assertion. Qed. 
