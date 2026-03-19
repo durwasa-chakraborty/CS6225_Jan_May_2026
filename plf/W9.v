@@ -613,7 +613,7 @@ Inductive step : tm -> tm -> Prop :=
   | ST_P1 : forall t1 t1' t2,
         t1 --> t1' ->
         P t1 t2 --> P t1' t2
-  | ST_P2 : forall t1 t2 t2',                    
+  | ST_P2 : forall t1 t2 t2',
         t2 --> t2' ->
         P t1 t2 --> P t1 t2'
 
@@ -698,6 +698,13 @@ Inductive multi {X : Type} (R : relation X) : relation X :=
                   R x y ->
                   multi R y z ->
                   multi R x z.
+                  
+Theorem multi_trans : forall (X : Type) (R : relation X)
+ (a b c : X), multi R a b -> multi R b c -> multi R a c.
+Proof. intros. induction H.
+- assumption.
+- eapply multi_step. apply H. auto.
+Qed. 
 
 Notation " t '-->*' t' " := (multi step t t') (at level 40).
 
@@ -728,9 +735,40 @@ of reduction steps. Such a language is called normalizing*)
 Definition normalizing {X : Type} (R : relation X) :=
   forall t, exists t', normal_form_of R t t'.
 
-(** Homework: Prove normalizing step *)
+Lemma multistep_congr_1 : forall t1 t1' t2,
+  t1 -->* t1' -> P t1 t2 -->* P t1' t2.
+Proof. intros. induction H.
+- constructor.
+- eapply multi_step. eapply ST_P1. apply H. assumption.
+Qed.
 
-(** Homework: We can also prove that the big step and small step reductions are equivalent to each other:
+Lemma multistep_congr_2 : forall v1 t2 t2',
+  value v1 -> t2 -->* t2' -> P v1 t2 -->* P v1 t2'.
+Proof. intros. induction H0.
+- constructor.
+- eapply multi_step. eapply ST_P2. assumption. apply H0. assumption.
+Qed.
+
+Theorem step_normalizing : normalizing step.
+Proof. intros t. induction t.
+- exists (C n). unfold normal_form_of. split.
+  -- constructor.
+  -- apply value_is_nf. constructor.
+- destruct IHt1 as [v1 IHt1]. destruct IHt2 as [v2 IHt2].
+  unfold normal_form_of in *. destruct IHt1 as [H11 H12].
+  destruct IHt2 as [H21 H22]. apply nf_is_value in H12.
+  apply nf_is_value in H22. destruct H12 as [n1]. destruct H22 as [n2].
+  exists (C (n1 + n2)). split.
+  * apply multi_trans with (b := P (C n1) t2).
+    ** apply multistep_congr_1. assumption.
+    ** apply multi_trans with (b := P (C n1) (C n2)).
+       *** apply multistep_congr_2. constructor. assumption.
+       *** eapply multi_step; constructor.
+  * apply value_is_nf. constructor.  
+Qed.
+
+(** Homework: We can also prove that the big step and small step 
+reductions are equivalent to each other:
 
 t ==> n -> t -->* C n.
 *)
