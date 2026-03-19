@@ -15,7 +15,7 @@ Require Import PeanoNat. Import Nat.
 Require Import Lia.
 From PLF Require Export Imp.
 
-
+Module DCom.
 
 (**
 A major advantage of using the proof rules of Hoare Logic is that
@@ -467,7 +467,7 @@ Example vc_subtract_slowly_dec : forall m n,
 verification_conditions_from (subtract_slowly_dec m n).
 Proof. verify_assertion. Qed. 
 
-
+End DCom.
 (**
 Small-step operational semantics
 --------------------------------------
@@ -886,3 +886,120 @@ Inductive cstep : (com * state) -> (com * state) -> Prop :=
       <{ if b1 then c1; while b1 do c1 end else skip end }> / st
 
   where " t '/' st '-->' t' '/' st' " := (cstep (t,st) (t',st')).
+
+(** Concurrent IMP
+
+We now add parallelism to the IMP language to demonstrate the
+power of small-step operational semantics.
+
+     c := skip
+        | x := a
+        | c ; c
+        | if b then c else c end
+        | while b do c end
+        | c || c                     <---------- new
+
+Example-1:
+-------------------
+
+      X := 0 || X := 1
+
+After execution, the value of X in the final state can be either
+0 or 1.
+
+Example-2:
+-------------------
+      X := 0; (X := X+2 || X := X+1 || X := 0)
+
+After execution, the value of X in the final state can be either
+0, 1, 2 or 3.
+*)
+
+Module CImp.
+
+Inductive com : Type :=
+  | CSkip : com
+  | CAsgn : string -> aexp -> com
+  | CSeq : com -> com -> com
+  | CIf : bexp -> com -> com -> com
+  | CWhile : bexp -> com -> com
+  | CPar : com -> com -> com.         (* <--- NEW: c1||c2 *)
+
+Notation "x '||' y" := (CPar x y)
+  (in custom com at level 100, right associativity,
+    format "'[v'   x '/' '||' '/ '  y ']'").
+Notation "'skip'"  := CSkip
+  (in custom com at level 0) : com_scope.
+Notation "x := y"  := (CAsgn x y)
+  (in custom com at level 0, x constr at level 0, y at level 85, no associativity,
+    format "x  :=  y") : com_scope.
+Notation "x ; y" := (CSeq x y)
+  (in custom com at level 90,
+    right associativity,
+    format "'[v' x ; '/' y ']'") : com_scope.
+Notation "'if' x 'then' y 'else' z 'end'" := (CIf x y z)
+  (in custom com at level 89, x at level 99, y at level 99, z at level 99,
+    format "'[v' 'if'  x  'then' '/  ' y '/' 'else' '/  ' z '/' 'end' ']'") : com_scope.
+Notation "'while' x 'do' y 'end'" := (CWhile x y)
+  (in custom com at level 89, x at level 99, y at level 99,
+    format "'[v' 'while'  x  'do' '/  ' y '/' 'end' ']'") : com_scope.
+
+Inductive cstep : (com * state)  -> (com * state) -> Prop :=
+    (* Old part: *)
+  | CS_AsgnStep : forall st i a1 a1',
+      a1 / st -->a a1' ->
+      <{ i := a1 }> / st --> <{ i := a1' }> / st
+  | CS_Asgn : forall st i (n : nat),
+      <{ i := n }> / st --> <{ skip }> / (i !-> n ; st)
+  | CS_SeqStep : forall st c1 c1' st' c2,
+      c1 / st --> c1' / st' ->
+      <{ c1 ; c2 }> / st --> <{ c1' ; c2 }> / st'
+  | CS_SeqFinish : forall st c2,
+      <{ skip ; c2 }> / st --> c2 / st
+  | CS_IfStep : forall st b1 b1' c1 c2,
+      b1 / st -->b b1' ->
+      <{ if b1 then c1 else c2 end }> / st
+      -->
+      <{ if b1' then c1 else c2 end }> / st
+  | CS_IfTrue : forall st c1 c2,
+      <{ if true then c1 else c2 end }> / st --> c1 / st
+  | CS_IfFalse : forall st c1 c2,
+      <{ if false then c1 else c2 end }> / st --> c2 / st
+  | CS_While : forall st b1 c1,
+      <{ while b1 do c1 end }> / st
+      -->
+      <{ if b1 then c1; while b1 do c1 end else skip end }> / st
+    (* New part: *)
+  | CS_Par1 : forall st c1 c1' c2 st',
+      c1 / st --> c1' / st' ->
+      <{ c1 || c2 }> / st --> <{ c1' || c2 }> / st'
+  | CS_Par2 : forall st c1 c2 c2' st',
+      c2 / st --> c2' / st' ->
+      <{ c1 || c2 }> / st --> <{ c1 || c2' }> / st'
+  | CS_ParDone : forall st,
+      <{ skip || skip }> / st --> <{ skip }> / st
+
+  where " t '/' st '-->' t' '/' st' " := (cstep (t,st) (t',st')).
+
+Notation " t '/' st '-->*' t' '/' st' " :=
+   (multi cstep  (t,st) (t',st'))
+   (at level 40, st at next level, t' at next level, left associativity).
+
+Definition par_ex_1 : com :=
+<{ X := 0 || X := 1}>.
+
+Example par_ex_1_exec : 
+  (exists st1, par_ex_1/empty_st -->* <{skip}>/st1 /\ st1 X = 0)
+  /\ (exists st2, par_ex_1/empty_st -->* <{skip}>/st2 /\ st2 X = 1).
+Proof. unfold par_ex_1. split.
+  - eexists. split. 
+    * eapply multi_step. eapply CS_Par2. apply CS_Asgn. 
+      eapply multi_step. eapply CS_Par1. apply CS_Asgn.
+      eapply multi_step. apply CS_ParDone. apply multi_refl.
+    * apply t_update_eq.
+  - eexists. split. 
+    * eapply multi_step. eapply CS_Par1. apply CS_Asgn. 
+      eapply multi_step. eapply CS_Par2. apply CS_Asgn.
+      eapply multi_step. apply CS_ParDone. apply multi_refl.
+    * apply t_update_eq.
+Qed.   
