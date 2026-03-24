@@ -1,5 +1,5 @@
 (**
-Lambda Calculus
+Type theory and Lambda Calculus
 
 Ref.: Software Foundations, Vol. 2, Stlc.v
 
@@ -13,6 +13,16 @@ From PLF Require Import W9b.
 Set Default Goal Selector "!".
 
 Hint Constructors multi : core.
+
+(** Types 
+- Types are a static/compile-time mechanism to guarantee simple
+properties about run-time behavior of programs, e.g. termination,
+no crashes, memory-safe behavior, no overflow, etc.
+- To illustrate types, we will use an abstract programming language
+called Lambda Calculus, which encapsulates the core ideas of 
+functions/abstraction in every programming language.
+- First, we will consider untyped lambda calculus.
+*)
 
 Module UnTyped_LC.
 (**
