@@ -17,10 +17,10 @@ Hint Constructors multi : core.
 (** Types 
 - Types are a static/compile-time mechanism to guarantee simple
 properties about run-time behavior of programs, e.g. termination,
-no crashes, memory-safe behavior, no overflow, etc.
+no crashes, memory-safety, no overflow, etc.
 - To illustrate types, we will use an abstract programming language
 called Lambda Calculus, which encapsulates the core ideas of 
-functions/abstraction in every programming language.
+functions/abstraction.
 - First, we will consider untyped lambda calculus.
 *)
 
@@ -96,6 +96,7 @@ Inductive tm : Type :=
 - true, false are boolean values.
 - An application should not be a value (as it can be simplified 
 further).
+- An if-then-else term also should not be a value.
 - An abstraction is always a value (irrespective of whether its
 body can be simplified further).
 *)
@@ -157,22 +158,19 @@ Note: Substitution becomes trickier when [s] (the term being
 substituted) contains a free variable.
 
 Example:
-   s = \x, r
-
-   (where [r] is a _free_ reference to some global resource) 
+   subst z (\x, r) (\r, z)
+   (where [r] is a _free_ variable) 
    substituted for the free variable [z] in the term
 
-    t = \r, z
-
-    where [r] is a bound variable, we would get
+   we would get
 
      \r, \x, r
 
-    where the free reference to [r] in [s] has been "captured" by
-    the binder at the beginning of [t].
+    where the free reference to [r] has been "captured" by
+    the binder.
     
-    This is undesirable because t' = \w, z is identical to 
-    t, but [subst z s t] would yield [\w, \x, r] which is not
+    This is undesirable because [\w, z] is identical to 
+    [\r, z], but [subst z (\x, r) (\w, z)] would yield [\w, \x, r] which is not
     identical to [\r, \x, r].
     
 In our setting, we will assume that terms being substituted do
@@ -183,9 +181,6 @@ above complexity.
 (** We can now define the small-step semantics of lambda calculus*)
 
 Inductive step : tm -> tm -> Prop :=
-  | ST_AppAbs : forall x t v,
-         value v ->
-         tm_app (tm_abs x t) v --> subst x v t
   | ST_App1 : forall t1 t1' t2,
          t1 --> t1' ->
          tm_app t1 t2 --> tm_app t1' t2
@@ -193,6 +188,9 @@ Inductive step : tm -> tm -> Prop :=
          value v1 ->
          t2 --> t2' ->
          tm_app v1 t2 --> tm_app v1  t2'
+  | ST_AppAbs : forall x t v,
+         value v ->
+         tm_app (tm_abs x t) v --> subst x v t
   | ST_IfTrue : forall t1 t2,
       tm_if tm_true t1 t2 --> t1
   | ST_IfFalse : forall t1 t2,
@@ -217,8 +215,17 @@ satisfy the strong progress theorem.
 
 That is, there are non-value terms which cannot take a step.
 Such terms are called 'stuck' terms.
-*)
 
+Examples:
+- true false
+- if (\x, x) then true else false
+
+There are terms which are not stuck, but which get stuck after
+reduction:
+- ((\f, f false) true)
+- (if true then true else (\x, x)) false
+- (\x, \y, y x) true false
+*)
 
 Notation step_normal_form := (normal_form step).
 
@@ -239,7 +246,15 @@ End UnTyped_LC.
 Module STLC.
 
 (* ================================================================= *)
-(** ** Types *)
+(** 
+- Our goal is to use types to define terms in lambda calculus which
+never get stuck (even after reduction).
+- Terms will now be annotated with types.
+  -- Also known as Simply Typed Lambda Calculus (STLC).
+- The compiler can check whether a term is 'well-typed'.
+- We will formally prove that 'well-typed' terms never get
+stuck.
+*)
 
 Inductive ty : Type :=
   | Ty_Bool  : ty
@@ -284,8 +299,6 @@ Notation "'true'"  := tm_true (in custom stlc_tm at level 0).
 Notation "'false'"  := false (at level 1).
 Notation "'false'"  := tm_false (in custom stlc_tm at level 0).
 
-(** We'll write types inside of [<{{ ... }}>] brackets: *)
-
 Check <{{ Bool }}>.
 Check <{{ Bool -> Bool }}>.
 Check <{{ (Bool -> Bool) -> Bool }}>.
@@ -328,6 +341,11 @@ Notation k := <{ \x:Bool, \y:Bool, x }>.
 
 Notation notB := <{ \x:Bool, if x then false else true }>.
 
+(**
+Definitions of value, substitution and the small-step operational
+semantics remain the same as untyped LC.
+*)
+
 Inductive value : tm -> Prop :=
   | v_abs : forall x T2 t1,
       value <{\x:T2, t1}>
@@ -357,17 +375,77 @@ Fixpoint subst (x : string) (s : tm) (t : tm) : tm :=
 
 where "'[' x ':=' s ']' t" := (subst x s t) (in custom stlc_tm).
 
+Reserved Notation "t '-->' t'" (at level 40).
 
-(** Types
-- While the syntax of a language may allow arbitrary terms, the
-semantics may only be defined for a subset of terms.
-- Using types allows us to statically identify only those terms 
-which are well-behaved.
-- More formally, well-typed terms are either values or else they
-can take a step according to the operational semantics.
- -- Also known as 'weak progress' property
+Inductive step : tm -> tm -> Prop :=
+  | ST_App1 : forall t1 t1' t2,
+         t1 --> t1' ->
+         <{t1 t2}> --> <{t1' t2}>
+  | ST_App2 : forall v1 t2 t2',
+         value v1 ->
+         t2 --> t2' ->
+         <{v1 t2}> --> <{v1  t2'}>
+  | ST_AppAbs : forall x T t v,
+         value v ->
+         <{(\x:T, t) v}> --> <{ [x:=v]t }>
+  | ST_IfTrue : forall t1 t2,
+      <{if true then t1 else t2}> --> t1
+  | ST_IfFalse : forall t1 t2,
+      <{if false then t1 else t2}> --> t2
+  | ST_If : forall t1 t1' t2 t3,
+      t1 --> t1' ->
+      <{if t1 then t2 else t3}> --> <{if t1' then t2 else t3}>
+
+where "t '-->' t'" := (step t t').
+
+Hint Constructors step : core.
+
+Notation multistep := (multi step).
+Notation "t1 '-->*' t2" := (multistep t1 t2) (at level 40).
+
+Lemma step_example1 :
+  <{idBB idB}> -->* idB.
+Proof. eapply multi_step.
+ - apply ST_AppAbs. constructor.
+ - simpl. apply multi_refl.
+Qed.  
+
+Lemma step_example2 :
+  <{idBB (idBB idB)}> -->* idB.
+Proof. eapply multi_step.
+  - eapply ST_App2. 
+    -- constructor.
+    -- apply ST_AppAbs. constructor.
+  - simpl. apply step_example1.
+Qed.  
+
+Lemma step_example3 :
+  <{idBB notB true}> -->* <{false}>.
+Proof. eapply multi_step.
+  - eapply ST_App1. apply ST_AppAbs. constructor.
+  - simpl. eapply multi_step.
+    -- apply ST_AppAbs. constructor.
+    -- simpl. eapply multi_step.
+      --- apply ST_IfTrue.
+      --- apply multi_refl.
+Qed.
+
+(**
+Note that the term below does not type-check.
 *)
 
-
-
+Lemma step_example4 :
+  <{idBB (notB true)}> -->* <{false}>.
+Proof. eapply multi_step.
+  - eapply ST_App2.
+    -- constructor.
+    -- apply ST_AppAbs. constructor.
+  - simpl. eapply multi_step.
+    -- eapply ST_App2.
+      --- constructor.
+      --- apply ST_IfTrue.
+    -- eapply multi_step.
+      --- apply ST_AppAbs. constructor.
+      --- simpl. apply multi_refl.
+Qed.  
 
