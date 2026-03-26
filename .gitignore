@@ -1,0 +1,7 @@
+Makefile
+Makefile.conf
+
+lectures/*.aux
+plf/*.aux
+
+.lia.cache

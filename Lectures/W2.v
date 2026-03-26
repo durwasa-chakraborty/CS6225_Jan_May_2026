@@ -3,7 +3,7 @@ Proof by Induction
 Ref: Software Foundations Vol.1, Induction.v
 *)
 
-From LECTURES Require Export W1.
+From Lectures Require Export W1.
 
 Theorem add_0_first_try : forall n:nat,
   n + 0 = n.

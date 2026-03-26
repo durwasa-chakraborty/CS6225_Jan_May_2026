@@ -9,7 +9,7 @@ Set Warnings "-notation-overridden,-parsing,-deprecated-hint-without-locality".
 Require Import Arith.
 From PLF Require Import Maps.
 Require Import Strings.String.
-From PLF Require Import W9b.
+From Lectures Require Import W9b.
 Set Default Goal Selector "!".
 
 Hint Constructors multi : core.
@@ -315,7 +315,7 @@ Notation "\ x : t , y" :=
                      y custom stlc_tm at level 200,
                      left associativity).
 Coercion tm_var : string >-> tm.
-Arguments tm_var _%_string.
+Arguments tm_var _%string.
 
 Definition x : string := "x".
 Definition y : string := "y".
@@ -449,3 +449,4 @@ Proof. eapply multi_step.
       --- simpl. apply multi_refl.
 Qed.  
 
+End STLC.

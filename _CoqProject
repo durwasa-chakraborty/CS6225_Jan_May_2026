@@ -1,1 +1,18 @@
--Q . LECTURES
+-Q plf PLF
+-Q lectures Lectures
+-Q labs Labs
+-Q assignments Assignments
+
+plf/Maps.v
+plf/Imp.v
+
+lectures/W1.v
+lectures/W2.v
+lectures/W3.v
+lectures/W4.v
+lectures/W5.v
+lectures/W6.v
+lectures/W7.v
+lectures/W9a.v
+lectures/W9b.v
+lectures/W10.v
