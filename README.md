@@ -1,4 +1,4 @@
-# CS6868 :: Programs and Proofs
+# CS6225 :: Programs and Proofs
 
 ## Structure 
 
