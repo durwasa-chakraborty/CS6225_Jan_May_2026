@@ -1,7 +1,13 @@
 Makefile
 Makefile.conf
 
-lectures/*.aux
-plf/*.aux
+*.aux
+*.vo
+*.vok
+*.vos
+*.glob
+*.crashcoqide
+.coqdeps.d
+
 
 .lia.cache
