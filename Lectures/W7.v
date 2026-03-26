@@ -323,7 +323,7 @@ required, then eauto can be used.
 
 Definition assertion_sub X (a:aexp) (Q:Assertion) : Assertion :=
   fun (st : state) =>
-    (Q%_assertion) (X !-> (aeval st a); st).
+    (Q%assertion) (X !-> (aeval st a); st).
 
 Notation "Q [ X |-> a ]" := (assertion_sub X a Q)
                               (in custom assn at level 10, left associativity,

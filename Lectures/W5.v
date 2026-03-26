@@ -5,7 +5,7 @@ Ref. Software Foundations, Volume 1: Logic.v, IndProp.v, ProofObjects.v, IndPrin
 *)
 
 
-From LECTURES Require Export W4.
+From Lectures Require Export W4.
 
 (** The Prop Type in Rocq
 - Every statement that we can try to prove is of type Prop.

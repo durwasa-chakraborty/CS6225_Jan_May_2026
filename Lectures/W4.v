@@ -13,7 +13,7 @@ Some more basic tactics in Rocq
 Ref.: Software Foundations, Volume 1, Tactics.v
 *)
 
-From LECTURES Require Export W3.
+From Lectures Require Export W3.
 
 
 (** The apply tactic

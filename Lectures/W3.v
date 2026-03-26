@@ -3,7 +3,7 @@ Lists, Polymorphism
 Ref: Software Foundations Vol.1, Lists.v, Poly.v
 *)
 
-From LECTURES Require Export W2.
+From Lectures Require Export W2.
 
 Module NatList.
 

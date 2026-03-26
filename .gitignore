@@ -1,0 +1,13 @@
+Makefile
+Makefile.conf
+
+*.aux
+*.vo
+*.vok
+*.vos
+*.glob
+*.crashcoqide
+.coqdeps.d
+
+
+.lia.cache

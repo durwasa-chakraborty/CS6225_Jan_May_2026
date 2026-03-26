@@ -7,7 +7,7 @@ Ref.: Software Foundations, Volume 2, SmallStep.v
 
 
 Set Warnings "-notation-overridden".
-(* From PLF Require Import W7. *)
+
 From PLF Require Import Maps.
 Require Import Bool.
 Require Import Arith.

@@ -6,7 +6,7 @@ Ref.: Software Foundations, Volume 2, Hoare2.v
 *)
 
 Set Warnings "-notation-overridden".
-From PLF Require Import W7.
+From Lectures Require Import W7.
 From PLF Require Export Maps.
 Require Import Bool.
 Require Import Arith.
