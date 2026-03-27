@@ -506,5 +506,37 @@ where "<{ Gamma '|--' t '\in' T }>" := (has_type Gamma t T) : stlc_scope.
 
 Hint Constructors has_type : core.
 
+Example typing_example_1 :
+  <{ empty |-- \x:Bool, x \in Bool -> Bool }>.
+Proof. eauto. Qed.
+
+Example typing_example_2 :
+  <{ empty |--
+    \x:Bool,
+       \y:Bool->Bool,
+          (y (y x)) \in
+    Bool -> (Bool -> Bool) -> Bool }>.
+Proof. eauto 20. Qed.
+
+Example typing_example_3 :
+   <{ empty |--
+      \x:Bool->Bool,
+         \y:Bool->Bool,
+            \z:Bool,
+               (y (x z)) \in
+     (Bool -> Bool) ->  (Bool -> Bool) -> Bool -> Bool  }>.
+Proof. apply T_Abs. apply T_Abs. apply T_Abs.
+eapply T_App. 
+- apply T_Var. rewrite update_neq. 
+  * rewrite update_eq. reflexivity.
+  * intros contra; discriminate contra. 
+- eapply T_App.
+  * apply T_Var. rewrite update_neq. 
+    ** rewrite update_neq. 
+      *** rewrite update_eq. reflexivity.
+      *** intros contra; discriminate contra. 
+    ** intros contra; discriminate contra.
+  * apply T_Var. apply update_eq.   
+Qed.
 
 End STLC.
