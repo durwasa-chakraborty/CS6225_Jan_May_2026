@@ -13,3 +13,6 @@
 └── assignments/         - Assignments namespace: assignment .v files go here
 ```
 
+To compile, use the following command on Terminal:
+
+`coq_makefile -f _CoqProject -o Makefile && make`
