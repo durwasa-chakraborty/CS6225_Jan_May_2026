@@ -224,7 +224,7 @@ There are terms which are not stuck, but which get stuck after
 reduction:
 - ((\f, f false) true)
 - (if true then true else (\x, x)) false
-- (\x, \y, y x) true false
+- (\x, \y, x y) true false
 *)
 
 Notation step_normal_form := (normal_form step).
@@ -447,6 +447,64 @@ Proof. eapply multi_step.
     -- eapply multi_step.
       --- apply ST_AppAbs. constructor.
       --- simpl. apply multi_refl.
-Qed.  
+Qed. 
+
+(** Typing Relation
+
+We will construct a typing relation of the form 
+[Gamma |-- t \in T] which says that under the typing context
+[Gamma], term [t] has type [T]. The typing context is a 
+map from variable names (i.e strings) to types.
+
+Our goal is to ensure that every term that is typed by the
+relation should never get stuck during reduction.
+*) 
+
+Definition context := partial_map ty.
+
+(**
+A partial_map is defined as follows (in Maps.v):
+
+[Definition partial_map (A : Type) := total_map (option A).]
+
+The empty partial_map maps every string to None. 
+*)
+
+Notation "x '|->' v ';' m " := (update m x v)
+  (in custom stlc_tm at level 0, x constr at level 0, v  custom stlc_ty, right associativity) : stlc_scope.
+
+Notation "x '|->' v " := (update empty x v)
+  (in custom stlc_tm at level 0, x constr at level 0, v custom stlc_ty) : stlc_scope.
+
+Notation "'empty'" := empty (in custom stlc_tm) : stlc_scope.
+
+Reserved Notation "<{ Gamma '|--' t '\in' T }>"
+            (at level 0, Gamma custom stlc_tm at level 200, t custom stlc_tm, T custom stlc_ty).
+
+Inductive has_type : context -> tm -> ty -> Prop :=
+  | T_Var : forall Gamma x T1,
+      Gamma x = Some T1 ->
+      <{ Gamma |-- x \in T1 }>
+  | T_Abs : forall Gamma x T1 T2 t1,
+      <{ x |-> T2 ; Gamma |-- t1 \in T1 }> ->
+      <{ Gamma |-- \x:T2, t1 \in T2 -> T1 }>
+  | T_App : forall T1 T2 Gamma t1 t2,
+      <{ Gamma |-- t1 \in T2 -> T1 }> ->
+      <{ Gamma |-- t2 \in T2 }> ->
+      <{ Gamma |-- t1 t2 \in T1 }>
+  | T_True : forall Gamma,
+      <{ Gamma |-- true \in Bool }>
+  | T_False : forall Gamma,
+      <{ Gamma |-- false \in Bool }>
+  | T_If : forall t1 t2 t3 T1 Gamma,
+       <{ Gamma |-- t1 \in Bool }> ->
+       <{ Gamma |-- t2 \in T1 }> ->
+       <{ Gamma |-- t3 \in T1 }> ->
+       <{ Gamma |-- if t1 then t2 else t3 \in T1 }>
+
+where "<{ Gamma '|--' t '\in' T }>" := (has_type Gamma t T) : stlc_scope.
+
+Hint Constructors has_type : core.
+
 
 End STLC.
