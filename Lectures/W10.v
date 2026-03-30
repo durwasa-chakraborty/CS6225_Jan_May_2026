@@ -539,4 +539,36 @@ eapply T_App.
   * apply T_Var. apply update_eq.   
 Qed.
 
+Example typing_nonexample_1:
+ ~ exists T, <{ empty |-- true false \in T}>.
+Proof. intros [T contra]. inversion contra; subst.
+ inversion H2.
+Qed.
+
+Example typing_nonexample_2:
+ ~ exists T, 
+  <{ empty |--
+     \x:Bool,
+        \y:Bool,
+           x y \in T }>.
+Proof. intros [T contra]. inversion contra; subst.
+  inversion H4; subst. inversion H5; subst.
+  inversion H2; subst. discriminate H1.
+Qed. 
+
+Example typing_nonexample_3 :
+  ~ (exists S T,
+      <{ empty |--
+          \x:S, x x \in T }>).
+Proof. intros [S [T contra]]. inversion contra; subst.
+ inversion H4; subst. inversion H2; subst. 
+ inversion H5; subst. rewrite H1 in H3. injection H3 as H3.
+ assert (L : forall (P1 P2: ty), <{{ P2 -> P1 }}> = P2 -> False).
+ { intros. generalize dependent P1. induction P2.
+  - intros. discriminate H.
+  - intros. injection H as L1 L2. eapply IHP2_1. apply L1.
+ }
+ eapply L. apply H3.
+Qed.
+
 End STLC.
