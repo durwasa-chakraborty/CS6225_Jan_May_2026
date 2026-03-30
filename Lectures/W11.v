@@ -93,25 +93,57 @@ Proof. intros t. induction t.
      constructor; assumption.
 Qed.
 
+Theorem substitution_type_preserving_type: forall (x : string)
+  (T1 T2 : ty) (t1 t2 : tm),
+  <{x |-> T2 |-- t1 \in T1}> ->
+  <{empty |-- t2 \in T2}> ->
+  <{empty |-- [x := t2] t1 \in T1}>.
+Proof. Admitted.
+
+
 Theorem preservation : forall t t' T,
   <{ empty |-- t \in T }> ->
   t --> t'  ->
   <{ empty |-- t' \in T }>.
-Proof. intros t t' T HType Hstep. generalize dependent t'. remember empty as Gamma. induction HType.
-  - intros. subst. discriminate H.
-  - intros. inversion Hstep.
-  - intros. inversion Hstep; subst.
-    -- apply T_App with (T2 := T2). 
+Proof. intros t t' T HType Hstep. generalize dependent t'.
+ remember empty as Gamma. induction HType.
+  - (* t = x0 *)
+    intros. subst. discriminate H.
+  - (* t = \x0 : T2, t1 *)
+    intros. inversion Hstep.
+  - (* t = t1 t2 *)
+   intros. inversion Hstep; subst.
+    -- (* t1 --> t1' *)
+      apply T_App with (T2 := T2). 
       * apply IHHType1. 
         ** reflexivity.
         ** assumption.
       * assumption.
-    -- apply T_App with (T2 := T2). 
+    -- (* t2 --> t2' *)
+      apply T_App with (T2 := T2). 
       * assumption. 
       * apply IHHType2. 
         ** reflexivity.
         ** assumption.
-    -- inversion HType1; subst. 
+    -- (* (\x0 : T, t) t2 --> [x0 := t2] t *)
+     inversion HType1; subst. 
+     eapply substitution_type_preserving.
+      * apply H1.
+      * assumption.
+  - (* t = true *)
+    intros. inversion Hstep.
+  - (* t = false *)
+    intros. inversion Hstep.
+  - (* t = if t1 then t2 else t3 *)
+    intros. inversion Hstep;subst.
+    -- assumption.
+    -- assumption.
+    -- apply T_If; try assumption.
+      * apply IHHType1.
+        ** reflexivity.
+        ** assumption.
+Qed.
+  
         
     
 
