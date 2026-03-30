@@ -92,6 +92,27 @@ Proof. intros t. induction t.
      right. exists (<{if t' then t2 else t3}>). 
      constructor; assumption.
 Qed.
+
+Theorem preservation : forall t t' T,
+  <{ empty |-- t \in T }> ->
+  t --> t'  ->
+  <{ empty |-- t' \in T }>.
+Proof. intros t t' T HType Hstep. generalize dependent t'. remember empty as Gamma. induction HType.
+  - intros. subst. discriminate H.
+  - intros. inversion Hstep.
+  - intros. inversion Hstep; subst.
+    -- apply T_App with (T2 := T2). 
+      * apply IHHType1. 
+        ** reflexivity.
+        ** assumption.
+      * assumption.
+    -- apply T_App with (T2 := T2). 
+      * assumption. 
+      * apply IHHType2. 
+        ** reflexivity.
+        ** assumption.
+    -- inversion HType1; subst. 
+        
     
 
 
