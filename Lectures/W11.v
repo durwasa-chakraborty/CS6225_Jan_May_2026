@@ -16,10 +16,10 @@ Module STLCProp.
 Import STLC.
 
 (**
-- Our goal is now to prove that well-typed terms in STLC do not
+- Our goal is to prove that well-typed terms in STLC do not
 get stuck during reduction.
-- We first consider the form of well-styped terms which are also
-values.
+- We first consider the well-typed terms which are also
+values. Such terms are said to be in canonical forms.
 
 *)
 
@@ -93,12 +93,110 @@ Proof. intros t. induction t.
      constructor; assumption.
 Qed.
 
-Theorem substitution_type_preserving_type: forall (x : string)
-  (T1 T2 : ty) (t1 t2 : tm),
-  <{x |-> T2 |-- t1 \in T1}> ->
-  <{empty |-- t2 \in T2}> ->
-  <{empty |-- [x := t2] t1 \in T1}>.
-Proof. Admitted.
+(**
+- We now want to show a well-typed term never gets stuck during
+multi-step reduction.
+
+Formally, empty |-- t \in T ->
+          t -->* t' ->
+          value t \/ exists t'', t --> t''.
+        
+- To prove this, we will first show that if a well-typed term takes
+ a step, the resulting term continues to remain well-typed.
+  -- In fact, we will show that it will have the same type.
+- Also known as preservation theorem.
+
+Formally, empty |-- t \in T ->
+          t --> t' ->
+          empty |-- t' \in T
+
+- To prove preservation, we first need to show that substitution 
+preserves type.
+
+Formally, x |-> U; Gamma |-- t \in T ->
+          empty |-- v \in U ->
+          Gamma |-- [x := v] t \in T
+
+- To prove that substitution preserves type, we will need to prove 
+that a term which is well-typed in a context Gamma continues to remain
+well-typed in a context Gamma' which includes all the bindings of 
+Gamma,
+
+Formally, includedin Gamma Gamma' ->
+          Gamma |-- t \in T ->
+          Gamma' |-- t \in T
+
+*)
+
+(** Definition of [includedin] from Maps.v:
+
+Definition includedin {A : Type} (m m' : partial_map A) :=
+  forall x v, m x = Some v -> m' x = Some v.
+
+*)
+
+Lemma weakening : forall Gamma Gamma' t T,
+     includedin Gamma Gamma' ->
+     <{ Gamma  |-- t \in T }>  ->
+     <{ Gamma' |-- t \in T }>.
+Proof. intros Gamma Gamma' t T Hin HGt. 
+  generalize dependent Gamma'. induction HGt.
+  - intros. apply T_Var. apply Hin. assumption.
+  - intros. apply T_Abs. apply IHHGt. apply includedin_update.
+    assumption.
+  - intros. apply T_App with (T2 := T2). 
+    -- apply IHHGt1; assumption.
+    -- apply IHHGt2; assumption.
+  - intros; constructor.
+  - intros; constructor.
+  - intros; apply T_If; auto.
+Qed.
+
+Lemma weakening_empty : forall Gamma t T,
+     <{ empty |-- t \in T }> ->
+     <{ Gamma |-- t \in T }>.
+Proof.
+  intros Gamma t T.
+  eapply weakening.
+  discriminate.
+Qed.
+
+Theorem substitution_preserves_type: forall (t v : tm) Gamma 
+(x : string) (T U : ty) ,
+  <{x |-> U ; Gamma |-- t \in T}> ->
+  <{empty |-- v \in U}> ->
+  <{Gamma |-- [x := v] t \in T}>.
+Proof. intros t. induction t; intros v Gamma x T U HTypet HTypev. 
+  - (* t = <{s}> *) 
+    destruct (String.eqb x s) eqn:E.
+    -- simpl. rewrite E. inversion HTypet; subst. 
+       apply String.eqb_eq in E. rewrite E in H1. 
+       rewrite update_eq in H1. injection H1 as H1. 
+       rewrite <- H1. apply weakening_empty; assumption.
+    -- simpl. rewrite E. inversion HTypet; subst. apply T_Var.
+       rewrite <- H1. apply String.eqb_neq in E. symmetry.
+       apply update_neq; assumption.
+  - (* t = <{t1 t2}> *)
+    inversion HTypet; subst. simpl. 
+    apply T_App with (T2 := T2); eauto.
+  - (* t = <{\s : t, t0}> *) 
+    inversion HTypet; subst. simpl. destruct (String.eqb x s) eqn:E.
+    -- apply T_Abs. apply String.eqb_eq in E. rewrite E in H4. 
+       rewrite update_shadow in H4. assumption.
+    -- apply T_Abs. apply IHt with (U := U).
+       * apply String.eqb_neq in E. 
+         replace (x |-> U; s |-> t; Gamma) with (s |-> t; x |-> U; Gamma).
+         ** assumption.
+         ** apply update_permute; assumption.
+       * assumption.
+  - (* t = <{true}>*)
+    inversion HTypet; subst. simpl. constructor.
+  - (* t = <{false}>*)
+    inversion HTypet; subst; simpl; constructor. 
+  - (* t = <{if t1 then t2 else t3}>*)
+    simpl. inversion HTypet; subst.  
+    apply T_If; eauto.
+Qed.
 
 
 Theorem preservation : forall t t' T,
@@ -127,7 +225,7 @@ Proof. intros t t' T HType Hstep. generalize dependent t'.
         ** assumption.
     -- (* (\x0 : T, t) t2 --> [x0 := t2] t *)
      inversion HType1; subst. 
-     eapply substitution_type_preserving.
+     eapply substitution_preserves_type.
       * apply H1.
       * assumption.
   - (* t = true *)
@@ -143,7 +241,46 @@ Proof. intros t t' T HType Hstep. generalize dependent t'.
         ** reflexivity.
         ** assumption.
 Qed.
+
+(** The converse of preservation does not necessarily hold:*)
   
+Theorem not_subject_expansion:
+  exists t t' T, t --> t' /\ <{ empty |-- t' \in T }> 
+  /\ ~ <{ empty |-- t \in T }>.
+Proof. exists <{(\x : Bool -> Bool, x) true}>. exists <{true}>.
+  exists <{{Bool}}>. split.
+  - apply ST_AppAbs. constructor.
+  - split;auto. intros contra. inversion contra; subst.
+    inversion H4; subst. inversion H2; subst.
+Qed.
+
+Definition stuck (t:tm) : Prop :=
+  (normal_form step) t /\ ~ value t.
+
+Corollary type_soundness : forall t t' T,
+  <{ empty |-- t \in T }> ->
+  t -->* t' ->
+  ~(stuck t').
+Proof. intros t t' T Htype Hstep. induction Hstep.
+  - unfold stuck, normal_form. intros contra. 
+    apply progress in Htype. destruct contra as [C1 C2].
+    destruct Htype as [H1 | H2]; auto.
+  - apply IHHstep. eapply preservation.
+    -- apply Htype.
+    -- apply H.
+Qed.
+
+(** More on STLC in the book:
+
+- Context Invariance: A more general form of the weakening lemma.
+  -- If a term [t] is well-typed under [Gamma], it continues to remain 
+  well-typed under 'inessential changes' to [Gamma]. In particlar, the 
+  types all of the free variables in [t] should remain the same.
+- Adding more base types in STLC: numbers, pairs, records, lists,
+  recursion.
+- Adding support for inclusion polymorphism using Subtyping.
+*)
+    
         
     
 
