@@ -141,15 +141,19 @@ Lemma weakening : forall Gamma Gamma' t T,
      <{ Gamma' |-- t \in T }>.
 Proof. intros Gamma Gamma' t T Hin HGt. 
   generalize dependent Gamma'. induction HGt.
-  - intros. apply T_Var. apply Hin. assumption.
-  - intros. apply T_Abs. apply IHHGt. apply includedin_update.
+  - (* t = <{x0}> *) 
+    intros. apply T_Var. apply Hin. assumption.
+  - (* t = <{\x0 : T2, t1}> *)
+    intros. apply T_Abs. apply IHHGt. apply includedin_update.
     assumption.
-  - intros. apply T_App with (T2 := T2). 
+  - (* t = <{t1 t2}> *) 
+    intros. apply T_App with (T2 := T2). 
     -- apply IHHGt1; assumption.
     -- apply IHHGt2; assumption.
-  - intros; constructor.
-  - intros; constructor.
-  - intros; apply T_If; auto.
+  - (* t = <{true}> *) intros; constructor.
+  - (* t = <{false}> *)intros; constructor.
+  - (* t = <{if t1 then t2 else t3}> *)
+    intros; apply T_If; auto.
 Qed.
 
 Lemma weakening_empty : forall Gamma t T,
@@ -157,7 +161,7 @@ Lemma weakening_empty : forall Gamma t T,
      <{ Gamma |-- t \in T }>.
 Proof.
   intros Gamma t T.
-  eapply weakening.
+  apply weakening.
   discriminate.
 Qed.
 
@@ -204,42 +208,26 @@ Theorem preservation : forall t t' T,
   t --> t'  ->
   <{ empty |-- t' \in T }>.
 Proof. intros t t' T HType Hstep. generalize dependent t'.
- remember empty as Gamma. induction HType.
+ remember empty as Gamma. induction HType; intros.
   - (* t = x0 *)
-    intros. subst. discriminate H.
+    inversion Hstep.
   - (* t = \x0 : T2, t1 *)
-    intros. inversion Hstep.
+    inversion Hstep.
   - (* t = t1 t2 *)
-   intros. inversion Hstep; subst.
+    inversion Hstep; subst.
     -- (* t1 --> t1' *)
-      apply T_App with (T2 := T2). 
-      * apply IHHType1. 
-        ** reflexivity.
-        ** assumption.
-      * assumption.
+      apply T_App with (T2 := T2); eauto. 
     -- (* t2 --> t2' *)
-      apply T_App with (T2 := T2). 
-      * assumption. 
-      * apply IHHType2. 
-        ** reflexivity.
-        ** assumption.
+      apply T_App with (T2 := T2); eauto. 
     -- (* (\x0 : T, t) t2 --> [x0 := t2] t *)
      inversion HType1; subst. 
-     eapply substitution_preserves_type.
-      * apply H1.
-      * assumption.
+     apply substitution_preserves_type with (U := T2); auto.
   - (* t = true *)
-    intros. inversion Hstep.
+    inversion Hstep.
   - (* t = false *)
-    intros. inversion Hstep.
+    inversion Hstep.
   - (* t = if t1 then t2 else t3 *)
-    intros. inversion Hstep;subst.
-    -- assumption.
-    -- assumption.
-    -- apply T_If; try assumption.
-      * apply IHHType1.
-        ** reflexivity.
-        ** assumption.
+    inversion Hstep;subst;eauto.
 Qed.
 
 (** The converse of preservation does not necessarily hold:*)
