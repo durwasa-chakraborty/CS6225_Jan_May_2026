@@ -99,7 +99,7 @@ multi-step reduction.
 
 Formally, empty |-- t \in T ->
           t -->* t' ->
-          value t \/ exists t'', t --> t''.
+          value t' \/ exists t'', t' --> t''.
         
 - To prove this, we will first show that if a well-typed term takes
  a step, the resulting term continues to remain well-typed.
@@ -273,16 +273,14 @@ Qed.
 (** More on STLC in the book:
 
 - Context Invariance: A more general form of the weakening lemma.
-  -- If a term [t] is well-typed under [Gamma], it continues to remain 
-  well-typed under 'inessential changes' to [Gamma]. In particlar, the 
-  types all of the free variables in [t] should remain the same.
+  -- If a term [t] is well-typed under [Gamma], it continues to 
+  remain well-typed under 'inessential changes' to [Gamma]. 
+  In particlar, the types all of the free variables in [t] should 
+  remain the same.
 - Adding more base types in STLC: numbers, pairs, records, lists,
   recursion.
 - Adding support for inclusion polymorphism using Subtyping.
 *)
-    
-        
-    
 
 
 
