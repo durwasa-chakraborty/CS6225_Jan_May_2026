@@ -265,9 +265,10 @@ Qed.
   remain well-typed under 'inessential changes' to [Gamma]. 
   In particlar, the types all of the free variables in [t] should 
   remain the same.
-- Adding more base types in STLC: numbers, pairs, records, lists,
-  recursion.
+- Adding more features to STLC: numbers, pairs, records, lists,
+  recursion, mutable references.
 - Adding support for inclusion polymorphism using Subtyping.
+- Normalization.
 *)
 
 
