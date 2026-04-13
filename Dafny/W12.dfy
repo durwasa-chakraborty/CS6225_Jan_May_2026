@@ -276,6 +276,27 @@ function BlueCount_2 (t: BYTree_2):nat{
   else BlueCount_2(t.left) + BlueCount_2(t.right)
 }
 
+/** Type Parameters in Inductive datatypes */
+
+datatype Tree<T> = LeafT(data : T)
+                   | NodeT(left : Tree<T>, right : Tree<T>)
+
+datatype Color = Blue | Yellow | Green | Red
+
+predicate AllBlue(t : Tree<Color>){
+  if t.LeafT? then
+    (if t.data == Blue then true else false)
+  else
+    AllBlue(t.left) && AllBlue(t.right)
+}
+
+function size<T> (t : Tree<T>) : nat{
+  if t.LeafT? 
+    then 1
+  else
+    size<T>(t.left) + size<T>(t.right)
+}
+
 
 
 
