@@ -537,7 +537,8 @@ function Find<T(==)>(xs: List<T>, y: T): nat
 
 /** 
 - The equality operator is automatically defined for every type in Dafny in the ghost context (i.e. in specifications, functions, lemmas, etc.).
-- If we want to compile the Find function, we must restrict the type parameter to only those types for which the equality operator is also defined in the compiled context. For this, we use the syntax [T(==)].
+- However, in the compiled context, equality operator is only defined for a limited set of types, specified by the type parameter T(==). This does not include for example functions.
+- If we want to compile the Find function, we must restrict the type parameter to only those types for which the equality operator is also defined in the compiled context.
  */
 
 function SlowReverse<T>(xs: List<T>): List<T> {
