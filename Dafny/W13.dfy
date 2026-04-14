@@ -9,7 +9,6 @@ Inductive aexp :=
 | AMinus (a1 a2: aexp).
 
  */
-
 datatype Expr = Const(n:nat)
 | Var(v:string)
 | Node(op: Op, args: List<Expr>)
@@ -49,6 +48,7 @@ Cons(h,t) [parameter args of EvalList] > h [parameter e of Eval]
 For the call from EvalList to EvalList:
 Cons(h,t) [parameter args of EvalList] > t [parameter args of Eval]
  */
+
 
 /** We can enforce a requirement that evaluation of an expression is only possible if its variables have been assigned a value in the environment*/
 
@@ -241,22 +241,321 @@ function Mult(x: nat, y: nat): nat {
     if y == 0 then 0 else x + Mult(x, y - 1)
 }
 
-lemma {:induction false} MultCommutative (x:nat, y:nat)
+lemma MultCommutativeAuto (x:nat, y:nat)
+    ensures Mult(x,y) == Mult(y,x)
+{
+    
+}
+
+lemma MultCommutative (x:nat, y:nat)
     ensures Mult(x,y) == Mult(y,x)
 {
     if x == y
     {
+        // Function congruence
+        assert(Mult(x,x) == Mult(x,x));
     }
     else if y == 0
     {
         assert (Mult(x,y) == 0);
+        assert (Mult(x-1,y) == 0);
         MultCommutative(y,x-1);
+        assert (Mult(y,x-1) == Mult(x-1,y));
+        assert (Mult(y,x) == y + Mult(y,x-1));
         assert(Mult(y,x) == 0);
+    }
+    else if x == 0
+    {
+        assert (Mult(y,x) == 0);
+        assert (Mult(y-1,x) == 0);
+        MultCommutative(x,y-1);
+        assert (Mult(x,y-1) == Mult(y-1,x));
+        assert (Mult(x,y) == x + Mult(x,y-1));
+        assert(Mult(x,y) == 0);
     }
     else
     {
         assert(Mult(x,y) == x + Mult(x,y-1));
-        assert(Mult(y,x) == y + Mult(y,x-1));
         MultCommutative(x,y-1);
+        assert(Mult(x,y-1) == Mult(y-1,x));
+        assert(Mult(y-1,x) == y-1 + Mult(y-1,x-1));
+        assert(Mult(x,y) == x + y-1 + Mult(y-1,x-1));
+
+        assert(Mult(y,x) == y + Mult(y,x-1));
+        MultCommutative(x-1,y);
+        assert(Mult(y,x-1) == Mult(x-1,y));
+        assert(Mult(x-1,y) == x-1 + Mult(x-1,y-1));
+        assert(Mult(y,x) == y + x-1 + Mult(x-1,y-1));
+
+        MultCommutative(x-1,y-1);
     }
 }
+
+lemma MultCommutativeShort (x:nat, y:nat)
+    ensures Mult(x,y) == Mult(y,x)
+{
+    if x == y
+    {
+        // Function congruence
+    }
+    else if y == 0
+    {
+        MultCommutativeShort(y,x-1);
+    }
+    else if x == 0
+    {
+        MultCommutativeShort(x,y-1);
+    }
+    else
+    {
+        MultCommutativeShort(x,y-1);
+        MultCommutativeShort(x-1,y);
+        MultCommutativeShort(x-1,y-1);
+    }
+}
+
+// Proofs about inductive data types
+module TreeProofs
+{
+datatype Tree<T> = Leaf(data: T)
+                   | Node(left: Tree<T>, right: Tree<T>)
+
+function Mirror<T>(t: Tree<T>): Tree<T> { 
+    match t
+    case Leaf(_) => t
+    case Node(left, right) => Node(Mirror(right), Mirror(left))
+}
+
+lemma {:induction false} MirrorMirror<T>(t: Tree<T>) 
+    ensures Mirror(Mirror(t)) == t
+{
+    if t.Leaf?
+    {
+        assert(Mirror(t) == t);
+    }
+    else
+    {
+        MirrorMirror(t.left);
+        MirrorMirror(t.right);
+    }
+}
+
+function Size<T>(t: Tree<T>): nat {
+    match t
+    case Leaf(_) => 1
+    case Node(left, right) => Size(left) + Size(right) 
+}
+
+lemma {:induction false} MirrorSize<T>(t: Tree<T>) 
+    ensures Size(Mirror(t)) == Size(t)
+{
+    match t
+    case Leaf(_) => 
+    case Node(left,right) => 
+        calc{
+            Size(Mirror(Node(left,right)));
+            ==
+            Size(Node(Mirror(right),Mirror(left)));
+            ==
+            Size(Mirror(right)) + Size(Mirror(left));
+            == {MirrorSize(left); MirrorSize(right);}
+            Size(right) + Size(left);
+            ==
+            Size(t);
+        }
+}
+}
+
+method evalTest()
+{
+    //x + 1 
+    var e1 := Node(Add, Cons(Var("x"),(Cons(Const(1),Nil))));
+    var env1 := map["x" := 1];
+    assert(Eval(e1,env1) == 2);
+    //(x + 1) + (y + 1) + (z + 1)
+    var e2 := Node(Add, Cons(Node(Add, Cons(Var("x"),(Cons(Const(1),Nil)))),
+                        Cons(Node(Add, Cons(Var("y"),(Cons(Const(1),Nil)))),
+                        Cons(Node(Add, Cons(Var("z"),(Cons(Const(1),Nil)))),
+                        Nil)
+    )));
+    var env2 := env1["y" := 1]["z" := 1];
+    assert(Eval(e2,env2) == 6);
+}
+
+/** Suppose we want to perform a peephole optimization on expressions: by removing any subexpression which adds by 0 or multiplies by 1
+
+(x + 0) + (y + 0) --> x + y 
+(0 + 0) + (y + 0) --> y
+ */
+
+function Unit(op: Op): nat {
+    match op 
+    case Add => 0 
+    case Mul => 1
+}
+
+function Optimize(e: Expr): Expr {
+     if e.Node? then
+        var args := OptimizeAndFilter(e.args, Unit(e.op));
+        Shorten(e.op, args)
+    else
+        e
+}
+
+function Shorten(op: Op, args: List<Expr>): Expr{
+    match args
+    case Nil => Const(Unit(op))
+    case Cons(e,Nil) => e
+    case _ => Node(op, args)
+}
+
+function OptimizeAndFilter(es: List<Expr>, unit: nat): List<Expr> {
+    match es
+    case Nil => Nil
+    case Cons(e, tail) =>
+        var e', tail' := Optimize(e), OptimizeAndFilter(tail, unit);
+        if e' == Const(unit) then tail' else Cons(e', tail') 
+}
+
+lemma OptimizeCorrect(e: Expr, env: map<string,nat>)
+    ensures Eval(e,env) == Eval(Optimize(e),env)
+{
+    if e.Node? 
+    {
+        var args := OptimizeAndFilter(e.args, Unit(e.op));
+        calc{
+            Eval(Optimize(e),env);
+            == 
+            Eval(Shorten(e.op,args), env);
+            == {ShortenCorrect(e.op,args,env);}
+            Eval(Node(e.op,args),env);
+            == {OptimizeAndFilterCorrect(e.op,e.args,env);}
+            Eval(Node(e.op,e.args),env);
+        }
+    }
+    else
+    {
+
+    }
+}
+
+lemma ShortenCorrect(op:Op, args: List<Expr>, env:map<string,nat>)
+    ensures Eval(Node(op,args),env) == Eval(Shorten(op,args),env)
+{
+    match args
+    case Nil =>
+    case Cons(e,Nil) => 
+        assert(Shorten(op,args) == e);
+        if (op == Add)
+        {
+            assert(Eval(Node(op,args),env) == Eval(e,env) + EvalList(Nil,Add,env));
+            assert(EvalList(Nil,Add,env) == 0);
+        }
+        else
+        {
+            assert(Eval(Node(op,args),env) == Eval(e,env) * EvalList(Nil,Mul,env));
+            assert(EvalList(Nil,Mul,env) == 1);
+        }
+    case _ =>
+}
+
+lemma OptimizeAndFilterCorrect(op:Op, args: List<Expr>, env:map<string,nat>)
+    ensures Eval(Node(op,args),env) == 
+                    Eval(Node(op,OptimizeAndFilter(args,Unit(op))), env)
+decreases args
+{
+    match args
+    case Nil =>
+    case Cons(e,tail) =>
+        OptimizeCorrect(e,env);
+        OptimizeAndFilterCorrect(op, tail, env);
+}       
+
+/** Lists in Dafny */
+module Lists
+{
+
+datatype List<T> = Nil | Cons(head: T, tail: List<T>)
+
+function Length<T>(xs: List<T>): nat {
+    match xs
+    case Nil => 0
+    case Cons(_, tail) => 1 + Length(tail)
+}
+
+function Snoc<T>(xs: List<T>, y: T): List<T> {
+    match xs
+    case Nil => Cons(y, Nil)
+    case Cons(x, tail) => Cons(x, Snoc(tail, y)) 
+}
+
+// The following lemma goes through automatically using induction.
+lemma LengthSnoc<T>(xs: List<T>, y:T)
+    ensures Length(Snoc(xs,y)) == Length(xs) + 1
+{
+
+}
+
+function Append<T>(xs: List<T>, ys: List<T>): List<T> {
+    match xs
+    case Nil => ys
+    case Cons(x, tail) => Cons(x, Append(tail, ys)) 
+}
+
+//The following is an example of an extrinsic specification
+lemma LengthAppend<T>(xs: List<T>, ys: List<T>)
+    ensures Length(Append(xs, ys)) == Length(xs) + Length(ys)
+{
+
+}
+
+//The following is an example of an intrinsic specification, i.e. it is included with the definition.
+function Append_2<T>(xs: List<T>, ys: List<T>): List<T> 
+    ensures Length(Append_2(xs, ys)) == Length(xs) + Length(ys)
+{
+    match xs
+    case Nil => ys
+    case Cons(x, tail) => Cons(x, Append_2(tail, ys))
+}
+
+/** 
+- Since methods in Dafny are opaque, all specifications must be intrinsic for methods. 
+- Functions are transparent, so specifications can be intrinsic or extrinsic.
+- Intrinsic specifications automatically come into the context on calling a function/method, while extrinsic specifications need to be explicitly loaded by calling lemmas.
+- Having too many intrinsic specifications can overload the solver, and increase verification time.
+- Hence, a common practice is to keep most specifications extrinsic for functions.
+*/ 
+
+function Find<T(==)>(xs: List<T>, y: T): nat 
+    ensures Find(xs, y) <= Length(xs)
+{
+    match xs
+    case Nil => 0
+    case Cons(x, tail) =>
+    if x == y then 0 else 1 + Find(tail, y) 
+}
+
+/** 
+- The equality operator is automatically defined for every type in Dafny in the ghost context (i.e. in specifications, functions, lemmas, etc.).
+- If we want to compile the Find function, we must restrict the type parameter to only those types for which the equality operator is also defined in the compiled context. For this, we use the syntax [T(==)].
+ */
+
+function SlowReverse<T>(xs: List<T>): List<T> {
+    match xs
+    case Nil => Nil
+    case Cons(x, tail) => Snoc(SlowReverse(tail), x) 
+}
+
+lemma LengthSlowReverse<T>(xs: List<T>)
+    ensures Length(SlowReverse(xs)) == Length(xs)
+{
+    match xs
+    case Nil => 
+    case Cons(x, tail) => LengthSnoc(SlowReverse(tail),x);
+}
+
+}
+
+
+
+
