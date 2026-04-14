@@ -52,7 +52,8 @@ Cons(h,t) [parameter args of EvalList] > t [parameter args of Eval]
 
 /** We can enforce a requirement that evaluation of an expression is only possible if its variables have been assigned a value in the environment*/
 
-module EvalWithGoodEnv{
+module EvalWithGoodEnv
+{
 
 datatype Expr = Const(n:nat)
 | Var(v:string)
@@ -115,12 +116,6 @@ lemma Increasing(x: int)
 
 }
 
-method ExampleMore(a: int) {
-    var b := More(a);
-    var c := More(b);
-    assert 2 <= c - a;
-}
-
 method ExampleLemmaUse(a: int) {
     var b := More(a);
     var c := More(b);
@@ -157,10 +152,8 @@ lemma {:induction false} Increasing(x: int)
         { { 0 < x } }
         { { 0 < x && More(x) == More(x - 2) + 3 } } // def. More for 0 < x
         Increasing(x - 2); // induction hypothesis
-        { { 0 < x && More(x) == More(x - 2) + 3 &&
-        x - 2 < More(x - 2) } }
-        { { More(x) == More(x - 2) + 3 &&
-        x + 1 < More(x - 2) + 3 } }
+        { { 0 < x && More(x) == More(x - 2) + 3 && x - 2 < More(x - 2) } }
+        { { More(x) == More(x - 2) + 3 && x + 1 < More(x - 2) + 3 } }
         { { x + 1 < More(x) } }
         { { x < More(x) } }
     }
@@ -241,5 +234,29 @@ lemma {:induction false} ReduceLowerBound(m: nat, x: int)
             ==>
             x - 2 * m <= Reduce(m,x);
         }
+    }
+}
+
+function Mult(x: nat, y: nat): nat {
+    if y == 0 then 0 else x + Mult(x, y - 1)
+}
+
+lemma {:induction false} MultCommutative (x:nat, y:nat)
+    ensures Mult(x,y) == Mult(y,x)
+{
+    if x == y
+    {
+    }
+    else if y == 0
+    {
+        assert (Mult(x,y) == 0);
+        MultCommutative(y,x-1);
+        assert(Mult(y,x) == 0);
+    }
+    else
+    {
+        assert(Mult(x,y) == x + Mult(x,y-1));
+        assert(Mult(y,x) == y + Mult(y,x-1));
+        MultCommutative(x,y-1);
     }
 }

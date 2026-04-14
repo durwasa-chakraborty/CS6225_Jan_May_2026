@@ -294,7 +294,7 @@ function size<T> (t : Tree<T>) : nat{
   if t.LeafT? 
     then 1
   else
-    size<T>(t.left) + size<T>(t.right)
+    size(t.left) + size(t.right)
 }
 
 
