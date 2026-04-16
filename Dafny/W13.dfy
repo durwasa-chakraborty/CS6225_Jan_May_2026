@@ -641,7 +641,140 @@ function ReverseAuxI<T>(xs: List<T>, acc: List<T>): List<T>
         ReverseAuxI(tail, Cons(x, acc))
 }
 
+/** Sorting */
+
+/** The specification is defined using a recursive predicate which ensures that any two consecutive elements of the list are ordered. */
+
+function At<T>(xs: List, i: nat) : T
+    requires i < Length(xs)
+{
+    match (xs, i)
+    case (Cons(x, _), 0) => x
+    case (Cons(x, tail), i) => At(tail, i-1)
 }
+
+predicate Ordered(xs: List<int>) { 
+    match xs
+    case Nil => true
+    case Cons(x, Nil) => true
+    case Cons(x, Cons(y, _)) => x <= y && Ordered(xs.tail)
+}
+
+lemma AllOrdered(xs: List<int>, i: nat, j: nat) 
+    requires Ordered(xs) && i <= j < Length(xs) 
+    ensures At(xs, i) <= At(xs, j)
+{
+    if (i == j)
+    {
+
+    }
+    else if (i + 1 == j)
+    {
+
+    }
+    else
+    {
+        AllOrdered(xs, i, j-1);
+    }
+}
+
+/** We also need the sorted output list and the input list to have the same elements.
+More precisely, the sorted output list should be a permutation of the input list.
+We specify this by saying that the multiset of elements in the input list is the same as the output list. */
+
+function Project(xs: List<int>, p: int): List<int> {
+    match xs
+    case Nil => Nil
+    case Cons(x, tail) =>
+        if x == p then Cons(x, Project(tail, p)) else Project(tail, p) }
+
+/** Insertion Sort */
+
+function InsertionSort(xs: List<int>): List<int> {
+    match xs
+    case Nil => Nil
+    case Cons(x, tail) => Insert(x, InsertionSort(tail)) 
+}
+
+function Insert(x: int, xs: List<int>): List<int> {
+    match xs
+    case Nil => Cons(x, Nil) 
+    case Cons(y, tail) =>
+        if x <= y then Cons(x, xs) else Cons(y, Insert(x, tail)) 
+}
+
+lemma InsertionSortOrdered(xs: List<int>) 
+    ensures Ordered(InsertionSort(xs))
+{
+    match xs
+    case Nil =>
+    case Cons(x, tail) => 
+        InsertOrdered(x, InsertionSort(tail));
+}
+
+lemma InsertOrdered(x: int, xs: List<int>)
+    requires Ordered(xs)
+    ensures Ordered(Insert(x, xs))
+{
+
+}
+
+lemma InsertionSortSameElements(xs: List<int>, p: int)
+    ensures Project(xs, p) == Project(InsertionSort(xs), p)
+{
+    match xs
+    case Nil =>
+    case Cons(x, tail) =>
+        if x == p
+        {
+            calc{
+                Project(InsertionSort(Cons(x, tail)), p);
+                ==
+                Project(Insert(x, InsertionSort(tail)), p);
+                == {InsertSameElements(x, InsertionSort(tail), p);}
+                Project(Cons(x, InsertionSort(tail)), p);
+                ==
+                Cons(x, Project(InsertionSort(tail), p));
+                == {InsertionSortSameElements(tail,p);}
+                Cons(x, Project(tail, p));
+                ==
+                Project(Cons(x,tail), p);
+            } 
+        }
+        else
+        {
+            calc{
+                Project(InsertionSort(Cons(x, tail)), p);
+                ==
+                Project(Insert(x, InsertionSort(tail)), p);
+                == {InsertSameElements(x, InsertionSort(tail), p);}
+                Project(Cons(x, InsertionSort(tail)), p);
+                ==
+                Project(InsertionSort(tail), p);
+                == {InsertionSortSameElements(tail,p);}
+                Project(tail, p);
+                ==
+                Project(Cons(x,tail), p);
+            }
+        }        
+}
+
+lemma InsertSameElements(x: int, xs: List<int>, p: int)
+    ensures Project(Cons(x, xs), p) == Project(Insert(x, xs), p)
+{
+
+}
+
+}
+
+method Main() {
+    var xs, i := Lists.Nil, 0; 
+    while i < 5 {
+        xs, i := Lists.Cons(i, xs), i + 1;
+    }
+    print xs, "\n"; 
+}
+
 
 
 
