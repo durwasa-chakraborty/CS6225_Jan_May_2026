@@ -775,6 +775,110 @@ method Main() {
     print xs, "\n"; 
 }
 
+/** Modules also provide a means for information hiding. 
+- A module can choose to export only a subset of its definition outside the module.
+- Further, it can also choose to export either only the signature, or both the signature and body of a definition.
+ */
+
+module ImmutableQueue {
+    import LL = Lists
+
+    export
+    provides Queue, Empty, Enqueue, Dequeue
+    provides LL, Elements
+    provides EmptyCorrect, EnqueueCorrect, DequeueCorrect
+
+    // the provides clause only exports the signature of a definition, i.e. its name, type, paramters, requires and ensures clauses
+    type Queue<A>
+
+    function Empty(): Queue
+
+    function Enqueue<A>(q: Queue, a: A): Queue
+
+    function Dequeue<A>(q: Queue): (A, Queue)
+        requires q != Empty()
+    
+    function Elements(q: Queue): LL.List
+
+    lemma EmptyCorrect<A>()
+        ensures Elements(Empty<A>()) == LL.Nil
+
+    lemma EnqueueCorrect<A>(q: Queue, x: A)
+        ensures Elements(Enqueue(q, x)) == LL.Snoc(Elements(q), x)
+
+    lemma DequeueCorrect(q: Queue)
+        requires q != Empty()
+        ensures var (a, q') := Dequeue(q);
+        LL.Cons(a, Elements(q')) == Elements(q)
+}
+
+module QueueClient {
+    import IQ = ImmutableQueue
+    method Client() {
+        var q := IQ.Empty();
+        q := IQ.Enqueue(q, 20);
+        var (a, q') := IQ.Dequeue(q); // precondition violation
+    }
+}
+
+module QueueClient2 {
+    import IQ = ImmutableQueue
+    method Client() {
+        var q := IQ.Empty();
+        IQ.EmptyCorrect<int>();
+        q := IQ.Enqueue(q, 20);
+        IQ.EnqueueCorrect(q, 20);
+        var (a, q') := IQ.Dequeue(q);
+    }
+}
+
+module ImmutableQueueImpl {
+    import LL = Lists
+
+    export
+    provides Queue, Empty, Enqueue, Dequeue
+    provides LL, Elements
+    provides EmptyCorrect, EnqueueCorrect, DequeueCorrect
+
+    // the provides clause only exports the signature of a definition, i.e. its name, type, paramters, requires and ensures clauses
+    datatype Queue<A> = FQ(front: LL.List<A>, rear: LL.List<A>)
+
+    function Elements(q: Queue): LL.List{
+        LL.Append(q.front, LL.Reverse(q.rear))
+    }
+
+    function Empty(): Queue {
+        FQ(LL.Nil, LL.Nil)
+    }
+
+    function Enqueue<A>(q: Queue, a: A): Queue{
+        FQ(q.front, LL.Cons(a, q.rear))
+    }
+
+    function Dequeue<A>(q: Queue): (A, Queue)
+        requires q != Empty()
+    {
+        match q.front
+        case Cons(a, tail) => (a, FQ(tail,q.rear))
+        case Nil => 
+            var front := LL.Reverse(q.rear);
+            LL.ReverseCorrect(q.rear);
+            (front.head, FQ(front.tail, LL.Nil))
+    }
+
+    lemma EmptyCorrect<A>()
+        ensures Elements(Empty<A>()) == LL.Nil
+
+    lemma EnqueueCorrect<A>(q: Queue, x: A)
+        ensures Elements(Enqueue(q, x)) == LL.Snoc(Elements(q), x)
+
+    lemma DequeueCorrect(q: Queue)
+        requires q != Empty()
+        ensures var (a, q') := Dequeue(q);
+        LL.Cons(a, Elements(q')) == Elements(q)
+}
+
+
 
 
 
