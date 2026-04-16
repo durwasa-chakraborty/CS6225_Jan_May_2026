@@ -198,7 +198,7 @@ lemma {:induction false} Decreasing(m:nat, x:int)
             true;
              ==> {Decreasing(m/2,x+1);}
             Reduce(m/2,x+1) <= x + 1;
-             ==> {assert(m >= 1);}
+             ==> //{assert(m >= 1);}
             Reduce(m/2,x+1) <= x + m; 
              ==>
             Reduce(m/2,x+1) - m <= x;
@@ -553,6 +553,92 @@ lemma LengthSlowReverse<T>(xs: List<T>)
     match xs
     case Nil => 
     case Cons(x, tail) => LengthSnoc(SlowReverse(tail),x);
+}
+
+function ReverseAux<T>(xs: List<T>, acc: List<T>): List<T>
+{
+    match xs
+    case Nil => acc
+    case Cons(x, tail) => ReverseAux(tail, Cons(x, acc))
+}
+
+lemma ReverseAuxCorrect<T>(xs: List<T>, acc: List<T>)
+    ensures ReverseAux(xs,acc) == Append(SlowReverse(xs), acc)
+{
+    match xs
+    case Nil =>
+    case Cons(x, tail) =>
+    calc{
+        ReverseAux(xs,acc) == Append(SlowReverse(xs), acc);
+        <==
+        ReverseAux(Cons(x, tail),acc) == Append(SlowReverse(Cons(x, tail)), acc);
+        <==
+        ReverseAux(tail, Cons(x, acc)) == Append(Snoc(SlowReverse(tail), x), acc);
+        <== {AppendSnoc(SlowReverse(tail), acc, x);}
+        ReverseAux(tail, Cons(x, acc)) == Append(SlowReverse(tail), Cons(x,acc));
+        <== {ReverseAuxCorrect(tail, Cons(x, acc));}
+        true;
+    }
+}
+
+lemma AppendSnoc<T>(xs1: List<T>, xs2: List<T>, x :T)
+    ensures Append(Snoc(xs1,x),xs2) == Append(xs1,Cons(x,xs2))
+{
+    match xs1
+    case Nil =>
+    case Cons(h,t) => 
+    calc{
+        Append(Snoc(Cons(h,t),x),xs2);
+        ==
+        Append(Cons(h,Snoc(t,x)),xs2);
+        ==
+        Cons(h,Append(Snoc(t,x),xs2));
+        == {AppendSnoc(t,xs2,x);}
+        Cons(h,Append(t,Cons(x,xs2)));
+        ==
+        Append(Cons(h,t),Cons(x,xs2));
+    }
+}
+
+function Reverse<T>(xs: List<T>): List<T> {
+    ReverseAux(xs, Nil)
+}
+
+lemma ReverseCorrect<T>(xs: List<T>)
+    ensures Reverse(xs) == SlowReverse(xs)
+{
+    calc{
+        Reverse(xs);
+        ==
+        ReverseAux(xs,Nil);
+        == {ReverseAuxCorrect(xs,Nil);}
+        Append(SlowReverse(xs), Nil);
+        == {AppendNil(SlowReverse(xs));}
+        SlowReverse(xs);
+    }
+}
+
+lemma AppendNil<T>(xs: List<T>)
+    ensures Append(xs,Nil) == xs
+{
+
+}
+
+/** To prove intrinsic specifications, Dafny allows proof-related constructs such as assertions, lemma calls and proof calculations to be directly embedded inside programs/expressions.
+ */
+
+function ReverseAuxI<T>(xs: List<T>, acc: List<T>): List<T>
+    ensures ReverseAuxI(xs,acc) == Append(SlowReverse(xs), acc)
+{
+    match xs
+    case Nil => acc
+    case Cons(x, tail) => 
+        calc{
+            ReverseAuxI(tail, Cons(x, acc)) == Append(Snoc(SlowReverse(tail), x), acc);
+            <== {AppendSnoc(SlowReverse(tail), acc, x);}
+            ReverseAuxI(tail, Cons(x, acc)) == Append(SlowReverse(tail), Cons(x,acc));
+        }
+        ReverseAuxI(tail, Cons(x, acc))
 }
 
 }
