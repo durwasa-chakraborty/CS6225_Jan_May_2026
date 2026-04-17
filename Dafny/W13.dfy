@@ -866,6 +866,7 @@ module ImmutableQueueImpl {
             (front.head, FQ(front.tail, LL.Nil))
     }
 
+    /** Homework: Prove the lemmas */
     lemma EmptyCorrect<A>()
         ensures Elements(Empty<A>()) == LL.Nil
 
