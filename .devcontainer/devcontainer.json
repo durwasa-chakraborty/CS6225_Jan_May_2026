@@ -1,0 +1,30 @@
+{
+  "name": "CS6225 Dafny",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-22.04",
+  "features": {
+    "ghcr.io/devcontainers/features/dotnet:2": {
+      "version": "8.0"
+    }
+  },
+  "postCreateCommand": "dotnet tool install --global dafny && echo 'export PATH=$HOME/.dotnet/tools:$PATH' >> ~/.bashrc && echo 'export PATH=$HOME/.dotnet/tools:$PATH' >> ~/.zshrc",
+  "remoteUser": "vscode",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dafny-lang.ide-vscode"
+      ],
+      "settings": {
+        "github.copilot.enable": { "*": false },
+        "editor.tabSize": 2,
+        "files.associations": {
+          "*.dfy": "dafny"
+        }
+      }
+    }
+  },
+  "hostRequirements": {
+    "cpus": 2,
+    "memory": "4gb",
+    "storage": "16gb"
+  }
+}
