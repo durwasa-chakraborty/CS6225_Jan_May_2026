@@ -1,13 +1,8 @@
 {
   "name": "CS6225 Dafny",
-  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-22.04",
-  "features": {
-    "ghcr.io/devcontainers/features/dotnet:2": {
-      "version": "8.0"
-    }
-  },
-  "postCreateCommand": "dotnet tool install --global dafny && echo 'export PATH=$HOME/.dotnet/tools:$PATH' >> ~/.bashrc && echo 'export PATH=$HOME/.dotnet/tools:$PATH' >> ~/.zshrc",
+  "image": "durwasa/cs6225-dafny:latest",
   "remoteUser": "vscode",
+  "runArgs": ["--platform=linux/amd64"],
   "customizations": {
     "vscode": {
       "extensions": [
