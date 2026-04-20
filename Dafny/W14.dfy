@@ -56,21 +56,6 @@ lemma isSingle(s: set<int>, i: int)
 
 /** Loops and Loop Invariants */
 
-method DivMod(x: nat, y: nat) returns (q: nat, r: nat)
-  requires y != 0
-  ensures x == q * y + r && r < y
-{
-	q := 0;
-	r := x;
-	while(r >= y)
-		invariant x == q * y + r
-		decreases r
-	{
-		q := q + 1;
-		r := r - y;
-	}
-}
-
 /**
 For a loop:
 while B
@@ -89,6 +74,23 @@ while B
 	Body
 {{ J && d0 > D }}
  */
+
+method DivMod(x: nat, y: nat) returns (q: nat, r: nat)
+  requires y != 0
+  ensures x == q * y + r && r < y
+{
+	q := 0;
+	r := x;
+	while(r >= y)
+		invariant x == q * y + r
+		decreases r
+	{
+		q := q + 1;
+		r := r - y;
+	}
+}
+
+/** Recursive specifications, iterative implementations */
 
 function Fib(n: nat): nat {
 	if n < 2 then n else Fib(n - 2) + Fib(n - 1)
@@ -127,24 +129,28 @@ method ComputeExp(b: nat, n: nat) returns (p: nat)
 	}
 }
 
+/** Arrays and Sequences */
 
 method ArrayIntro()
 {
 	var a := new int[20](i => 0);   // a is of type array<int>
-	var b := a;											// arrays are allocated on the heap
-	b[0] := b[0] + 1;								// When copying, only the reference is copied
+	var b := a;						// arrays are allocated on the heap
+	b[0] := b[0] + 1;				// When copying, only the reference is copied
 	assert (a[0] == 1);
 
-	var s := [0, 1, 2];							// s is of type seq<int>
-	//s[0] := s[0] + 1;						  // gives an error as sequences are immutable
-	s := s + [3, 4, 5];							// + is the concatenation operator for sequences
+	var s := [0, 1, 2];				// s is of type seq<int>
+	//s[0] := s[0] + 1;				// gives an error as sequences are immutable
+	var t := s;						// a copy of the sequence is created 
+	t := t + [3, 4, 5];				// + is the concatenation operator for sequences
+	assert (t == [0,1,2,3,4,5]);
+	assert (s == [0,1,2]);
 }
 
 method LinearSearch1<T>(a: array<T>, P: T -> bool) returns (n: int) 
 	ensures 0 <= n <= a.Length
 	ensures n == a.Length || P(a[n])
 	ensures n == a.Length ==>
-	forall i :: 0 <= i < a.Length ==> !P(a[i])
+			forall i :: 0 <= i < a.Length ==> !P(a[i])
 {
 	n := 0;
 	while n != a.Length
@@ -156,4 +162,71 @@ method LinearSearch1<T>(a: array<T>, P: T -> bool) returns (n: int)
 		}
 		n := n + 1;
 	}
+}
+
+predicate one(m : int){
+	m==1
+}
+
+method SearchCaller()
+{
+	var a := new int[][1,2,3,4,5];
+	var n := LinearSearch1(a, one);
+	if (n == 5)
+	{
+		assert(a[0] != 1 && a[0] == 1);
+		assert(n == 0);
+	}
+	else
+	{
+		assert (n == 0);
+	}
+}
+
+method LinearSearch2<T>(a: array<T>, P: T -> bool) returns (n: nat)
+	requires exists i :: 0 <= i < a.Length && P(a[i])
+	ensures 0 <= n < a.Length
+	ensures P(a[n])
+{
+	n := 0;
+	while(n != a.Length)
+	invariant 0 <= n < a.Length
+	invariant exists i :: n <= i < a.Length && P(a[i])
+	{
+		if (P(a[n]))
+		{
+			return;
+		}
+		n := n + 1;
+	}
+}
+
+method BinarySearch(a: array<int>, key: int) returns (n: int)
+  requires forall i, j :: 0 <= i < j < a.Length ==> a[i] <= a[j]
+  ensures 0 <= n <= a.Length
+  ensures forall i :: 0 <= i < n ==> a[i] < key
+  ensures forall i :: n <= i < a.Length ==> key <= a[i]
+{
+  var lo, hi := 0, a.Length;
+  while lo < hi
+    invariant 0 <= lo <= hi <= a.Length
+    invariant forall i :: 0 <= i < lo ==> a[i] < key
+    invariant forall i :: hi <= i < a.Length ==> key <= a[i]
+  {
+    var mid := (lo + hi) / 2;
+    if a[mid] < key {
+      lo := mid + 1;
+    } else {
+      hi := mid;
+    }
+  }
+  n := lo;
+}
+
+method Contains(a: array<int>, key: int)
+	requires forall i, j :: 0 <= i < j < a.Length ==> a[i] <= a[j]
+	requires exists i :: 0 <= i < a.Length && a[i] == key
+{
+	var n := BinarySearch(a, key);
+	assert(a[n] == key);
 }

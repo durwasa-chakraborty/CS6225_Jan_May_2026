@@ -1,3 +1,9 @@
+/**
+Lemmas and Proofs, Lists, Sorting, Modules
+Ref. : Programs and Proofs, Chapters 5-8
+ */
+
+
 /** Abstract Syntax Trees for Arithmetic Expressions
 
 Recall the definition from Rocq:
