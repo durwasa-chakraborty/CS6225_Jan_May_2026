@@ -230,3 +230,45 @@ method Contains(a: array<int>, key: int)
 	var n := BinarySearch(a, key);
 	assert(a[n] == key);
 }
+
+method Min(a: array<int>) returns (m: int)
+	requires a.Length != 0
+	ensures forall i :: 0 <= i < a.Length ==> m <= a[i]
+	ensures exists i :: 0 <= i < a.Length && a[i] == m
+{
+	m := a[0];
+	var n := 1;
+	while(n != a.Length)
+	invariant 1 <= n <= a.Length
+	invariant forall i :: 0 <= i < n ==> m <= a[i]
+	invariant exists i :: 0 <= i < n && a[i] == m
+	{
+		if a[n] < m
+		{
+			m := a[n];
+		}
+		n := n + 1;
+	}
+}
+
+/** Loop frames */
+
+method LoopFrameExample(X: int, Y: int)
+  requires 0 <= X <= Y
+{
+	var i, a, b := 0, X, Y;
+  	while i < 100
+	invariant Y <= b
+  	{
+   		i, b := i + 1, b + X;
+  	}
+  	assert a == X;      //Dafny automatically infers that a and X are unchanged by the loop
+  	assert Y <= b; 
+}
+
+/**
+- Loop frame are variables which are not modified inside a loop.
+- Parameters of a function can never be modified, and hence are always part of the loop frame.
+- For local variables, Dafny inspects the body and automatically determines which variables are not on the LHS of an assignment statement.
+- For arrays, programmers have to write an explicit modifies clause to indicate which array variables are modified inside the loop body.
+ */
