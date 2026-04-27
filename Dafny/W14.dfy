@@ -1,3 +1,8 @@
+/**
+Proof By Contradiction, Loop Invariants, Arrays: traversal, modification, frames
+Ref. Program Proofs, Chapters 11-14
+ */
+
 /** Proof by contradiction in Dafny
 
 General shape:
@@ -304,6 +309,7 @@ method Aliases(a: array<int>, b: array<int>)
   c[20] := a[14] + 2;
 }
 
+
 method Increment(a: array<int>, i: int)
   requires 0 <= i < a.Length
   modifies a
@@ -327,10 +333,16 @@ method InitArray(a: array<int>, d: int)
 	}
 }
 
-method InitArrayWithoutLoops(d: int)
+method ArrayModificationsWithoutLoops(d: int)
 {
-	var a := new int[100] (i => d);
+	var a := new int[100] (i => d);   // Array constructor, can be passed any function
 	assert (forall i :: 0 <= i < a.Length ==> a[i] == d);
+	var b := new int[100] (i requires 0 <= i < a.Length reads a => a[i]);
+	forall i | 0 <= i < 100
+	{
+		a[i] := a[i] + 1;
+	}
+	assert (forall i :: 0 <= i < a.Length ==> a[i] == b[i]+1);
 }
 
 method IncrementAll(a: array<int>)
