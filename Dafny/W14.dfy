@@ -355,11 +355,11 @@ method IncrementAll(a: array<int>)
 	invariant forall i :: 0 <= i < n ==> a[i] == old(a[i]) + 1
 	//default modifies clause of a loop is the same as the enclosing method
 	{
-		//assert(a[n] + 1 == old(a[n]) + 1);
+		assert(a[n] + 1 == old(a[n]) + 1);
 		a[n] := a[n] + 1;
-		//assert(forall i :: 0 <= i < n ==> a[i] == old(a[i]) + 1);
-		//assert(a[n] == old(a[n]) + 1);
-		//assert(forall i :: 0 <= i < n + 1 ==> a[i] == old(a[i]) + 1);
+		assert(forall i :: 0 <= i < n ==> a[i] == old(a[i]) + 1);
+		assert(a[n] == old(a[n]) + 1);
+		assert(forall i :: 0 <= i < n + 1 ==> a[i] == old(a[i]) + 1);
 		n := n + 1;
 	}
 }

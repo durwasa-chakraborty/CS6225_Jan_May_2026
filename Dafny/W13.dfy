@@ -1,6 +1,6 @@
 /**
 Lemmas and Proofs, Lists, Sorting, Modules
-Ref. : Programs and Proofs, Chapters 5-8
+Ref. : Programs Proofs, Chapters 5-8
  */
 
 
