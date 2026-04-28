@@ -96,11 +96,27 @@ method SelectionSort(a: array<int>)
   }
 }
 
+/** Objects in Dafny
+- Object-oriented programming similar to Java, C++.
+- An object is a stateful abstraction.
+  - Includes fields, functions, and methods.
+- Objects are stored on the heap, and passed by reference.
+ */
+
+/**
+Consider a ChecksumMachine object, which computes checksums (essentially hashes) for some data.
+- Provides the functionality to clients to supply data in pieces.
+ */
 
 class ChecksumMachine
 {
-  ghost var data: string
+  // Used only for specification purpose, will not be present in the compiled code
+  ghost var data: string  
+
+  // In the compiled code, we will only maintain the running value of the hash     
   var cs: int
+
+  
   ghost function Hash(s: string): int
   {
     SumChars(s) % 137
