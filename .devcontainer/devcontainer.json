@@ -1,0 +1,25 @@
+{
+  "name": "CS6225 Dafny",
+  "image": "durwasa/cs6225-dafny:latest",
+  "remoteUser": "vscode",
+  "runArgs": ["--platform=linux/amd64"],
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dafny-lang.ide-vscode"
+      ],
+      "settings": {
+        "github.copilot.enable": { "*": false },
+        "editor.tabSize": 2,
+        "files.associations": {
+          "*.dfy": "dafny"
+        }
+      }
+    }
+  },
+  "hostRequirements": {
+    "cpus": 2,
+    "memory": "4gb",
+    "storage": "16gb"
+  }
+}
