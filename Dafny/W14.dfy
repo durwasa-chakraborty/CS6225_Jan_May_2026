@@ -1,3 +1,8 @@
+/**
+Proof By Contradiction, Loop Invariants, Arrays: traversal, modification, frames
+Ref. Program Proofs, Chapters 11-14
+ */
+
 /** Proof by contradiction in Dafny
 
 General shape:
@@ -102,8 +107,8 @@ method ComputeFib(n: nat) returns (x: nat)
 	x := 0;
 	var y := 1;
 	var i := 0;
-	while i != n
-		invariant 0 <= i <= n
+	while i < n
+		invariant i <= n
 		invariant x == Fib(i) && y == Fib(i+1)
 	{
 		x, y := y, x + y;
@@ -229,4 +234,163 @@ method Contains(a: array<int>, key: int)
 {
 	var n := BinarySearch(a, key);
 	assert(a[n] == key);
+}
+
+method Min(a: array<int>) returns (m: int)
+	requires a.Length != 0
+	ensures forall i :: 0 <= i < a.Length ==> m <= a[i]
+	ensures exists i :: 0 <= i < a.Length && a[i] == m
+{
+	m := a[0];
+	var n := 1;
+	while(n != a.Length)
+	invariant 1 <= n <= a.Length
+	invariant forall i :: 0 <= i < n ==> m <= a[i]
+	invariant exists i :: 0 <= i < n && a[i] == m
+	{
+		if a[n] < m
+		{
+			m := a[n];
+		}
+		n := n + 1;
+	}
+}
+
+/** Loop frames */
+
+method LoopFrameExample(X: int, Y: int)
+  requires 0 <= X <= Y
+{
+	var i, a, b := 0, X, Y;
+  	while i < 100
+	invariant Y <= b
+  	{
+   		i, b := i + 1, b + X;
+  	}
+  	assert a == X;      //Dafny automatically infers that a and X are unchanged by the loop
+  	assert Y <= b; 
+}
+
+/**
+- Loop frame are variables which are not modified inside a loop.
+- Parameters of a function can never be modified, and hence are always part of the loop frame.
+- For local variables, Dafny inspects the body and automatically determines which variables are not on the LHS of an assignment statement.
+- For arrays, programmers have to write an explicit modifies clause to indicate which array variables would be modified.
+ */
+
+method SetEndPoints(a: array<int>, left: int, right: int)
+  requires a.Length != 0
+  modifies a
+{
+  a[0] := left;
+  a[a.Length - 1] := right;
+}
+
+method EndPointCaller()
+{
+	var a := new int[10] (i => i+1);
+	assert(a[0] == 1);
+	SetEndPoints(a, 0, 0);
+	assert(a[0] == 1);    // SetEndPoints is modifying the array, so all assertions
+	assert(a[1] == 2);	  // regarding its elements will fail.
+	assert(a[0] == 0);    // The specification of SetEndPoints is not precise enough
+}
+
+method Aliases(a: array<int>, b: array<int>)
+  requires 100 <= a.Length
+  modifies a
+{
+  a[0] := 10;
+  var c := a;
+  if b == a {  
+	//Dafny is automatically able to infer that a and b are aliases here
+    b[10] := b[0] + 1;   
+  }
+  c[20] := a[14] + 2;
+}
+
+
+method Increment(a: array<int>, i: int)
+  requires 0 <= i < a.Length
+  modifies a
+  ensures a[i] == old(a[i]) + 1 
+  // We can use old(a[i]) refer to the value of the array element at index i at the beginning of the method, i.e. the method's pre-state
+{
+  a[i] := a[i] + 1; 
+}
+
+method InitArray(a: array<int>, d: int)
+	modifies a
+	ensures forall i :: 0 <= i < a.Length ==> a[i] == d
+{
+	var n := 0;
+	while n != a.Length
+	invariant 0 <= n <= a.Length
+	invariant forall i :: 0 <= i < n ==> a[i] == d
+	{
+		a[n] := d;
+		n := n + 1;
+	}
+}
+
+method ArrayModificationsWithoutLoops(d: int)
+{
+	var a := new int[100] (i => d);   // Array constructor, can be passed any function
+	assert (forall i :: 0 <= i < a.Length ==> a[i] == d);
+	var b := new int[100] (i requires 0 <= i < a.Length reads a => a[i]);
+	forall i | 0 <= i < 100
+	{
+		a[i] := a[i] + 1;
+	}
+	assert (forall i :: 0 <= i < a.Length ==> a[i] == b[i]+1);
+}
+
+method IncrementAll(a: array<int>)
+	ensures forall i :: 0 <= i < a.Length ==> a[i] == old(a[i]) + 1
+	modifies a
+{
+	var n := 0;
+	while(n != a.Length)
+	invariant 0 <= n <= a.Length
+	invariant forall i :: 0 <= i < n ==> a[i] == old(a[i]) + 1
+	//default modifies clause of a loop is the same as the enclosing method
+	{
+		assert(a[n] + 1 == old(a[n]) + 1);
+		a[n] := a[n] + 1;
+		assert(forall i :: 0 <= i < n ==> a[i] == old(a[i]) + 1);
+		assert(a[n] == old(a[n]) + 1);
+		assert(forall i :: 0 <= i < n + 1 ==> a[i] == old(a[i]) + 1);
+		n := n + 1;
+	}
+}
+
+method IncrementAllCorrect(a: array<int>)
+	ensures forall i :: 0 <= i < a.Length ==> a[i] == old(a[i]) + 1
+	modifies a
+{
+	var n := 0;
+	while(n != a.Length)
+	invariant 0 <= n <= a.Length
+	invariant forall i :: 0 <= i < n ==> a[i] == old(a[i]) + 1
+	invariant forall i :: n <= i < a.Length ==> a[i] == old(a[i])
+	{
+		a[n] := a[n] + 1;
+		n := n + 1;
+	}
+}
+
+method Copy(src: array, dst: array)
+	modifies dst
+	requires src.Length == dst.Length
+	ensures forall i :: 0 <= i < src.Length ==> old(src[i]) == dst[i]
+{
+	var n := 0;
+	while(n != src.Length)
+	invariant 0 <= n <= src.Length
+	invariant forall i :: 0 <= i < n ==> old(src[i]) == dst[i]
+	invariant forall i :: 0 <= i < src.Length ==> old(src[i]) == src[i]
+	{
+		dst[n] := src[n];
+		n := n + 1;
+	}
 }
